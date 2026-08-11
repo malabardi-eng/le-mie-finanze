@@ -88,7 +88,7 @@
     letter-spacing: -0.01em;
   }
   .app-header .subtitle { color: var(--text-muted); font-size: 0.85rem; margin-top: 0.15rem; display: flex; align-items: center; gap: 0.4rem; }
-  .header-right { display: flex; align-items: center; gap: 0.75rem; }
+  .header-right { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; row-gap: 0.5rem; }
 
   .sync-dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--text-muted); flex-shrink: 0; }
   .sync-dot.ok { background: var(--good); }
@@ -123,15 +123,17 @@
 
   /* ---------- Stat tiles ---------- */
   .stats {
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.9rem;
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.9rem;
     margin-bottom: 1.75rem;
   }
-  @media (max-width: 760px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 760px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 360px) { .stats { grid-template-columns: minmax(0, 1fr); } }
 
   .stat-tile {
     background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
     padding: 1.1rem 1.2rem; box-shadow: var(--shadow);
     display: flex; flex-direction: column; gap: 0.4rem; position: relative;
+    min-width: 0;
   }
   .stat-label {
     font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
@@ -141,9 +143,11 @@
   .stat-value {
     font-family: var(--font-mono); font-variant-numeric: tabular-nums;
     font-size: 1.55rem; font-weight: 600; letter-spacing: -0.01em;
+    min-width: 0; overflow-wrap: break-word;
   }
   .stat-value.positive { color: var(--good); }
   .stat-value.negative { color: var(--danger); }
+  @media (max-width: 400px) { .stat-value { font-size: 1.25rem; } }
   .stat-edit-btn {
     all: unset; cursor: pointer; color: var(--text-muted); font-size: 0.68rem;
     padding: 0.1rem 0.3rem; border-radius: 5px;
@@ -157,12 +161,13 @@
   }
 
   /* ---------- Section cards ---------- */
-  .grid-main { display: grid; grid-template-columns: 1.15fr 1fr; gap: 1rem; align-items: start; }
+  .grid-main { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 1rem; align-items: start; }
   @media (max-width: 860px) { .grid-main { grid-template-columns: 1fr; } }
 
   .card {
     background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
     padding: 1.25rem 1.3rem 1.4rem; box-shadow: var(--shadow);
+    container-type: inline-size;
   }
   .card + .card { margin-top: 1rem; }
   .card-title {
@@ -262,10 +267,17 @@
     gap: 0.55rem; align-items: end; margin-bottom: 1.1rem;
     padding-bottom: 1.1rem; border-bottom: 1px solid var(--border);
   }
-  @media (max-width: 700px) { .tx-form { grid-template-columns: 1fr 1fr; } }
-  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  @container (max-width: 640px) { .tx-form { grid-template-columns: 1fr 1fr; } }
+  @container (max-width: 420px) { .tx-form { grid-template-columns: 1fr; } }
+  /* Browser senza supporto container queries: ripiega sulla larghezza finestra */
+  @supports not (container-type: inline-size) {
+    @media (max-width: 700px) { .tx-form { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 480px) { .tx-form { grid-template-columns: 1fr; } }
+  }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
   .field label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600; }
   .field input, .field select {
+    width: 100%; min-width: 0; box-sizing: border-box;
     font-family: var(--font-body); font-size: 0.85rem;
     background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
     padding: 0.45rem 0.55rem; color: var(--text);
