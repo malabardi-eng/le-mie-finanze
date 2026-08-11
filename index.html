@@ -289,6 +289,10 @@
   }
   .type-toggle button.active.entrata { background: var(--good-soft); color: var(--good); }
   .type-toggle button.active.uscita { background: var(--danger-soft); color: var(--danger); }
+  .chart-type-toggle {
+    font-family: var(--font-body); font-weight: 500;
+  }
+  .chart-type-toggle button { padding: 0.3rem 0.65rem; font-size: 0.72rem; }
 
   /* ---------- Transactions filter ---------- */
   .tx-filter-row {
@@ -375,7 +379,6 @@
         <button id="nextMonth" aria-label="Mese successivo">›</button>
       </div>
       <button class="ghost-btn" id="refreshBtn">Aggiorna</button>
-      <button class="ghost-btn" id="resetBtn">Azzera dati</button>
     </div>
   </header>
 
@@ -469,7 +472,13 @@
         </div>
       </div>
       <div class="card">
-        <h2 class="card-title">Ripartizione spese</h2>
+        <h2 class="card-title">
+          Ripartizione
+          <div class="type-toggle chart-type-toggle" id="chartTypeToggle">
+            <button type="button" class="active uscita" data-chart-type="uscita">Spese</button>
+            <button type="button" class="entrata" data-chart-type="entrata">Entrate</button>
+          </div>
+        </h2>
         <div class="chart-wrap" id="chartWrap"></div>
       </div>
     </div>
@@ -529,6 +538,7 @@
   var currentTxType = "entrata";
   var filterText = "";
   var filterCategory = "";
+  var chartType = "uscita";
 
   // ---------- Sincronizzazione con Supabase ----------
   function setSyncStatus(mode, label) {
@@ -565,8 +575,12 @@
 
   function catColor(cat) {
     var idx = state.categories.indexOf(cat);
-    if (idx < 0) idx = 0;
-    return PALETTE[idx % PALETTE.length];
+    if (idx >= 0) return PALETTE[idx % PALETTE.length];
+    // Etichetta non presente tra le categorie di budget (es. una fonte di entrata
+    // come "Lucia"): le assegna comunque un colore stabile, diverso da tutte le altre.
+    var hash = 0;
+    for (var i = 0; i < cat.length; i++) hash = (hash * 31 + cat.charCodeAt(i)) >>> 0;
+    return PALETTE[hash % PALETTE.length];
   }
 
   function monthLabel(ym) {
@@ -771,12 +785,14 @@
 
   function renderChart() {
     var wrap = document.getElementById("chartWrap");
-    var monthTx = txForMonth(currentMonth).filter(function (t) { return t.type === "uscita"; });
+    var monthTx = txForMonth(currentMonth).filter(function (t) { return t.type === chartType; });
     var byCat = {}, total = 0;
     monthTx.forEach(function (t) { byCat[t.category] = (byCat[t.category] || 0) + t.amount; total += t.amount; });
 
     if (total === 0) {
-      wrap.innerHTML = '<div class="donut-empty">Nessuna spesa registrata questo mese.</div>';
+      wrap.innerHTML = '<div class="donut-empty">' +
+        (chartType === "entrata" ? "Nessuna entrata registrata questo mese." : "Nessuna spesa registrata questo mese.") +
+        '</div>';
       return;
     }
 
@@ -792,7 +808,8 @@
     });
 
     var svg =
-      '<svg width="120" height="120" viewBox="0 0 120 120" role="img" aria-label="Ripartizione spese per categoria">' + segments +
+      '<svg width="120" height="120" viewBox="0 0 120 120" role="img" aria-label="' +
+        (chartType === "entrata" ? "Ripartizione entrate per fonte" : "Ripartizione spese per categoria") + '">' + segments +
         '<circle cx="' + cx + '" cy="' + cy + '" r="34" fill="var(--surface)"></circle>' +
         '<text x="' + cx + '" y="' + (cy - 2) + '" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="var(--text)" font-weight="600">' + fmtEUR.format(total).replace("€", "").trim() + '</text>' +
         '<text x="' + cx + '" y="' + (cy + 12) + '" text-anchor="middle" font-family="var(--font-body)" font-size="8" fill="var(--text-muted)">totale €</text>' +
@@ -927,6 +944,15 @@
     updateCategoryHint();
   });
 
+  document.getElementById("chartTypeToggle").addEventListener("click", function (e) {
+    var btn = e.target.closest("button[data-chart-type]");
+    if (!btn) return;
+    chartType = btn.getAttribute("data-chart-type");
+    this.querySelectorAll("button").forEach(function (b) { b.classList.remove("active"); });
+    btn.classList.add("active");
+    renderChart();
+  });
+
   document.getElementById("addTxBtn").addEventListener("click", function () {
     var dateEl = document.getElementById("txDate");
     var descEl = document.getElementById("txDesc");
@@ -993,20 +1019,6 @@
   });
   document.getElementById("newCategoryInput").addEventListener("keydown", function (e) {
     if (e.key === "Enter") document.getElementById("addCategoryBtn").click();
-  });
-
-  document.getElementById("resetBtn").addEventListener("click", function () {
-    if (!confirm("Azzerare TUTTI i movimenti e i budget su Supabase? L'operazione non è reversibile e vale per tutti i dispositivi collegati.")) return;
-    Promise.all([
-      sbFetch("/finanze_movimenti?id=not.is.null", { method: "DELETE" }),
-      sbFetch("/finanze_categorie?budget=gt.-1", { method: "PATCH", body: { budget: 0 } }),
-      sbFetch("/finanze_impostazioni?id=eq.1", { method: "PATCH", body: { saldo_iniziale: 0 } })
-    ]).then(function () {
-      return loadAll();
-    }).then(function () {
-      renderAll();
-      showToast("Dati azzerati");
-    }).catch(function () { showToast("Errore nell'azzerare i dati", true); });
   });
 
   document.getElementById("txSearch").addEventListener("input", function () { filterText = this.value; renderTransactions(); });
