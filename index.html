@@ -419,8 +419,9 @@
             <input type="text" id="txDesc" placeholder="Es. Spesa al supermercato" />
           </div>
           <div class="field">
-            <label for="txCategory">Categoria</label>
-            <select id="txCategory"></select>
+            <label for="txCategory" id="txCategoryLabel">Categoria</label>
+            <input type="text" id="txCategory" list="txCategoryList" placeholder="Scegli o scrivi (es. Lucia, ADI…)" autocomplete="off" />
+            <datalist id="txCategoryList"></datalist>
           </div>
           <div class="field">
             <label for="txAmount">Importo €</label>
@@ -633,21 +634,20 @@
   }
 
   function renderCategorySelect() {
-    var sel = document.getElementById("txCategory");
-    var prev = sel.value;
-    sel.innerHTML = "";
-    state.categories.forEach(function (c) {
-      var opt = document.createElement("option");
-      opt.value = c; opt.textContent = c;
-      sel.appendChild(opt);
-    });
-    if (state.categories.indexOf(prev) >= 0) sel.value = prev;
-
-    var filterSel = document.getElementById("txCategoryFilter");
     var allLabels = state.categories.slice();
     state.transactions.forEach(function (t) {
       if (allLabels.indexOf(t.category) < 0) allLabels.push(t.category);
     });
+
+    // Campo "Categoria" del modulo: elenco suggerimenti (datalist), ma resta scrivibile
+    // liberamente — utile per le entrate, dove la "categoria" è spesso una fonte
+    // (es. "Lucia", "ADI") e non una vera voce di budget.
+    var list = document.getElementById("txCategoryList");
+    list.innerHTML = allLabels.map(function (c) {
+      return '<option value="' + escapeHtml(c) + '"></option>';
+    }).join("");
+
+    var filterSel = document.getElementById("txCategoryFilter");
     var prevFilter = filterSel.value;
     filterSel.innerHTML = '<option value="">Tutte le categorie</option>';
     allLabels.forEach(function (c) {
@@ -906,12 +906,25 @@
       .catch(function () { showToast("Errore nel salvare il saldo", true); });
   });
 
+  function updateCategoryHint() {
+    var catEl = document.getElementById("txCategory");
+    var labelEl = document.getElementById("txCategoryLabel");
+    if (currentTxType === "entrata") {
+      labelEl.textContent = "Categoria / fonte";
+      catEl.placeholder = "Es. Lucia, ADI, Freelance…";
+    } else {
+      labelEl.textContent = "Categoria";
+      catEl.placeholder = "Es. Spesa alimentare…";
+    }
+  }
+
   document.getElementById("txTypeToggle").addEventListener("click", function (e) {
     var btn = e.target.closest("button[data-type]");
     if (!btn) return;
     currentTxType = btn.getAttribute("data-type");
     this.querySelectorAll("button").forEach(function (b) { b.classList.remove("active"); });
     btn.classList.add("active");
+    updateCategoryHint();
   });
 
   document.getElementById("addTxBtn").addEventListener("click", function () {
@@ -923,15 +936,16 @@
 
     var date = dateEl.value;
     var amount = parseFloat(amountEl.value);
+    var categoria = catEl.value.trim();
 
     if (!date) { dateEl.focus(); return; }
     if (!amount || amount <= 0) { amountEl.focus(); return; }
-    if (!catEl.value) { catEl.focus(); return; }
+    if (!categoria) { catEl.focus(); return; }
 
     var payload = {
       data: date,
       descrizione: descEl.value.trim(),
-      categoria: catEl.value,
+      categoria: categoria,
       importo: Math.round(amount * 100) / 100,
       tipo: currentTxType
     };
@@ -944,6 +958,18 @@
         currentMonth = date.slice(0, 7);
         descEl.value = "";
         amountEl.value = "";
+
+        // Se è un'uscita con una categoria mai vista prima, la aggiunge automaticamente
+        // al budget mensile (per le entrate no: lì la "categoria" è spesso solo una fonte,
+        // es. "Lucia", e non deve intasare la lista dei budget di spesa).
+        if (currentTxType === "uscita" && state.categories.indexOf(categoria) < 0) {
+          var ordine = state.categories.length;
+          state.categories.push(categoria);
+          state.budgets[categoria] = 0;
+          sbFetch("/finanze_categorie", { method: "POST", body: { nome: categoria, budget: 0, ordine: ordine } })
+            .catch(function () {});
+        }
+
         renderAll();
         showToast("Movimento aggiunto");
       })
@@ -1000,6 +1026,7 @@
   });
 
   document.getElementById("txDate").value = today.toISOString().slice(0, 10);
+  updateCategoryHint();
 
   loadAll().then(function () {
     renderAll();
