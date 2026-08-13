@@ -263,7 +263,7 @@
 
   /* ---------- Transaction form ---------- */
   .tx-form {
-    display: grid; grid-template-columns: 1.2fr 1.6fr 1.1fr 1fr auto auto;
+    display: grid; grid-template-columns: 1.2fr 1.6fr 1.1fr 1.1fr 1fr auto auto;
     gap: 0.55rem; align-items: end; margin-bottom: 1.1rem;
     padding-bottom: 1.1rem; border-bottom: 1px solid var(--border);
   }
@@ -337,6 +337,12 @@
     background: var(--surface-2); border: 1px solid var(--border); border-radius: 99px;
     padding: 0.15rem 0.55rem;
   }
+  .tx-metodo-pill {
+    display: inline-flex; align-items: center; font-size: 0.76rem; color: var(--text-muted);
+    border: 1px solid var(--border); border-radius: 99px; padding: 0.15rem 0.55rem;
+    white-space: nowrap;
+  }
+  .tx-metodo-empty { color: var(--text-muted); opacity: 0.5; font-size: 0.8rem; }
   .tx-del { all: unset; cursor: pointer; color: var(--text-muted); font-size: 0.9rem; }
   .tx-del:hover { color: var(--danger); }
   .tx-empty { color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 2rem 0; }
@@ -427,6 +433,11 @@
             <datalist id="txCategoryList"></datalist>
           </div>
           <div class="field">
+            <label for="txMetodo">Metodo</label>
+            <input type="text" id="txMetodo" list="txMetodoList" placeholder="Contanti, Banca, PayPal…" autocomplete="off" />
+            <datalist id="txMetodoList"></datalist>
+          </div>
+          <div class="field">
             <label for="txAmount">Importo €</label>
             <input type="number" step="0.01" min="0" id="txAmount" placeholder="0,00" />
           </div>
@@ -447,12 +458,15 @@
           <select id="txCategoryFilter">
             <option value="">Tutte le categorie</option>
           </select>
+          <select id="txMetodoFilter">
+            <option value="">Tutti i metodi</option>
+          </select>
           <button class="btn btn-sm" id="clearFilterBtn" style="display:none;">Cancella filtro</button>
         </div>
         <div class="tx-table-wrap">
           <table class="tx-table" id="txTable">
             <thead>
-              <tr><th>Data</th><th>Descrizione</th><th>Categoria</th><th style="text-align:right;">Importo</th><th></th></tr>
+              <tr><th>Data</th><th>Descrizione</th><th>Categoria</th><th>Metodo</th><th style="text-align:right;">Importo</th><th></th></tr>
             </thead>
             <tbody id="txTableBody"></tbody>
           </table>
@@ -532,12 +546,13 @@
     return d.toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" });
   };
 
-  var state = { initialBalance: 0, categories: [], budgets: {}, transactions: [] };
+  var state = { initialBalance: 0, categories: [], budgets: {}, transactions: [], metodi: [] };
   var today = new Date();
   var currentMonth = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0");
   var currentTxType = "entrata";
   var filterText = "";
   var filterCategory = "";
+  var filterMetodo = "";
   var chartType = "uscita";
 
   // ---------- Sincronizzazione con Supabase ----------
@@ -548,21 +563,31 @@
     lbl.textContent = label;
   }
 
+  function fetchMovimenti() {
+    return sbFetch("/finanze_movimenti?select=id,data,descrizione,categoria,importo,tipo,metodo&order=data.desc")
+      .catch(function () {
+        // Colonna "metodo" non ancora presente (migrazione non eseguita su questo progetto): ripiega senza.
+        return sbFetch("/finanze_movimenti?select=id,data,descrizione,categoria,importo,tipo&order=data.desc");
+      });
+  }
+
   function loadAll() {
     setSyncStatus("busy", "Sincronizzazione…");
     return Promise.all([
       sbFetch("/finanze_categorie?select=nome,budget,ordine&order=ordine.asc"),
-      sbFetch("/finanze_movimenti?select=id,data,descrizione,categoria,importo,tipo&order=data.desc"),
-      sbFetch("/finanze_impostazioni?select=saldo_iniziale&id=eq.1")
+      fetchMovimenti(),
+      sbFetch("/finanze_impostazioni?select=saldo_iniziale&id=eq.1"),
+      sbFetch("/finanze_metodi?select=nome,ordine&order=ordine.asc").catch(function () { return []; })
     ]).then(function (results) {
-      var categorie = results[0], movimenti = results[1], impostazioni = results[2];
+      var categorie = results[0], movimenti = results[1], impostazioni = results[2], metodi = results[3];
       state.categories = categorie.map(function (c) { return c.nome; });
       state.budgets = {};
       categorie.forEach(function (c) { state.budgets[c.nome] = Number(c.budget) || 0; });
       state.transactions = movimenti.map(function (m) {
-        return { id: m.id, date: m.data, desc: m.descrizione, category: m.categoria, amount: Number(m.importo), type: m.tipo };
+        return { id: m.id, date: m.data, desc: m.descrizione, category: m.categoria, amount: Number(m.importo), type: m.tipo, metodo: m.metodo || "" };
       });
       state.initialBalance = impostazioni.length ? Number(impostazioni[0].saldo_iniziale) || 0 : 0;
+      state.metodi = metodi.map(function (m) { return m.nome; });
       setSyncStatus("ok", "Sincronizzato");
       return state;
     }).catch(function (err) {
@@ -670,6 +695,29 @@
       filterSel.appendChild(opt);
     });
     if (allLabels.indexOf(prevFilter) >= 0) filterSel.value = prevFilter;
+
+    // Campo "Metodo": stessa logica, elenco suggerimenti ma scrivibile liberamente
+    // così si possono aggiungere in qualsiasi momento nuove carte/conti.
+    var allMetodi = state.metodi.slice();
+    state.transactions.forEach(function (t) {
+      if (t.metodo && allMetodi.indexOf(t.metodo) < 0) allMetodi.push(t.metodo);
+    });
+    var metodoList = document.getElementById("txMetodoList");
+    metodoList.innerHTML = allMetodi.map(function (m) {
+      return '<option value="' + escapeHtml(m) + '"></option>';
+    }).join("");
+
+    var metodoFilterSel = document.getElementById("txMetodoFilter");
+    if (metodoFilterSel) {
+      var prevMetodoFilter = metodoFilterSel.value;
+      metodoFilterSel.innerHTML = '<option value="">Tutti i metodi</option>';
+      allMetodi.forEach(function (m) {
+        var opt = document.createElement("option");
+        opt.value = m; opt.textContent = m;
+        metodoFilterSel.appendChild(opt);
+      });
+      if (allMetodi.indexOf(prevMetodoFilter) >= 0) metodoFilterSel.value = prevMetodoFilter;
+    }
   }
 
   function renderBudgets() {
@@ -824,7 +872,7 @@
     wrap.innerHTML = svg + legend;
   }
 
-  function isFilterActive() { return filterText.trim() !== "" || filterCategory !== ""; }
+  function isFilterActive() { return filterText.trim() !== "" || filterCategory !== "" || filterMetodo !== ""; }
 
   function renderTransactions() {
     var tbody = document.getElementById("txTableBody");
@@ -840,7 +888,8 @@
       list = state.transactions.filter(function (t) {
         var matchesText = !needle || (t.desc || "").toLowerCase().indexOf(needle) >= 0;
         var matchesCat = !filterCategory || t.category === filterCategory;
-        return matchesText && matchesCat;
+        var matchesMetodo = !filterMetodo || t.metodo === filterMetodo;
+        return matchesText && matchesCat && matchesMetodo;
       });
     } else {
       list = txForMonth(currentMonth);
@@ -878,6 +927,7 @@
         '<td class="tx-date">' + fmtDate(t.date) + '</td>' +
         '<td>' + escapeHtml(t.desc || "—") + '</td>' +
         '<td><span class="tx-cat-pill"><span class="cat-dot" style="background:' + catColor(t.category) + '"></span>' + escapeHtml(t.category) + '</span></td>' +
+        '<td>' + (t.metodo ? '<span class="tx-metodo-pill">' + escapeHtml(t.metodo) + '</span>' : '<span class="tx-metodo-empty">—</span>') + '</td>' +
         '<td class="tx-amount ' + t.type + '">' + (t.type === "entrata" ? "+" : "−") + fmtEUR.format(t.amount).replace("€", "").trim() + " €</td>" +
         '<td><button class="tx-del" data-id="' + t.id + '" title="Elimina movimento">✕</button></td>' +
       '</tr>';
@@ -953,16 +1003,32 @@
     renderChart();
   });
 
+  function insertMovimento(payload) {
+    return sbFetch("/finanze_movimenti", { method: "POST", body: payload, prefer: "return=representation" })
+      .catch(function (err) {
+        // Se la colonna "metodo" non esiste ancora su questo progetto (migrazione non
+        // eseguita), ritenta senza — il movimento si salva comunque, solo senza metodo.
+        if (Object.prototype.hasOwnProperty.call(payload, "metodo")) {
+          var fallback = {};
+          for (var k in payload) if (k !== "metodo") fallback[k] = payload[k];
+          return sbFetch("/finanze_movimenti", { method: "POST", body: fallback, prefer: "return=representation" });
+        }
+        throw err;
+      });
+  }
+
   document.getElementById("addTxBtn").addEventListener("click", function () {
     var dateEl = document.getElementById("txDate");
     var descEl = document.getElementById("txDesc");
     var catEl = document.getElementById("txCategory");
+    var metodoEl = document.getElementById("txMetodo");
     var amountEl = document.getElementById("txAmount");
     var addBtn = this;
 
     var date = dateEl.value;
     var amount = parseFloat(amountEl.value);
     var categoria = catEl.value.trim();
+    var metodo = metodoEl.value.trim();
 
     if (!date) { dateEl.focus(); return; }
     if (!amount || amount <= 0) { amountEl.focus(); return; }
@@ -975,12 +1041,13 @@
       importo: Math.round(amount * 100) / 100,
       tipo: currentTxType
     };
+    if (metodo) payload.metodo = metodo;
 
     addBtn.disabled = true;
-    sbFetch("/finanze_movimenti", { method: "POST", body: payload, prefer: "return=representation" })
+    insertMovimento(payload)
       .then(function (rows) {
         var row = rows[0];
-        state.transactions.push({ id: row.id, date: row.data, desc: row.descrizione, category: row.categoria, amount: Number(row.importo), type: row.tipo });
+        state.transactions.push({ id: row.id, date: row.data, desc: row.descrizione, category: row.categoria, amount: Number(row.importo), type: row.tipo, metodo: row.metodo || "" });
         currentMonth = date.slice(0, 7);
         descEl.value = "";
         amountEl.value = "";
@@ -993,6 +1060,15 @@
           state.categories.push(categoria);
           state.budgets[categoria] = 0;
           sbFetch("/finanze_categorie", { method: "POST", body: { nome: categoria, budget: 0, ordine: ordine } })
+            .catch(function () {});
+        }
+
+        // Metodo nuovo (es. una carta non ancora usata): lo aggiunge all'elenco
+        // suggerimenti per i prossimi movimenti, sia in entrata che in uscita.
+        if (metodo && state.metodi.indexOf(metodo) < 0) {
+          var metodoOrdine = state.metodi.length;
+          state.metodi.push(metodo);
+          sbFetch("/finanze_metodi", { method: "POST", body: { nome: metodo, ordine: metodoOrdine } })
             .catch(function () {});
         }
 
@@ -1023,10 +1099,12 @@
 
   document.getElementById("txSearch").addEventListener("input", function () { filterText = this.value; renderTransactions(); });
   document.getElementById("txCategoryFilter").addEventListener("change", function () { filterCategory = this.value; renderTransactions(); });
+  document.getElementById("txMetodoFilter").addEventListener("change", function () { filterMetodo = this.value; renderTransactions(); });
   document.getElementById("clearFilterBtn").addEventListener("click", function () {
-    filterText = ""; filterCategory = "";
+    filterText = ""; filterCategory = ""; filterMetodo = "";
     document.getElementById("txSearch").value = "";
     document.getElementById("txCategoryFilter").value = "";
+    document.getElementById("txMetodoFilter").value = "";
     renderTransactions();
   });
 
