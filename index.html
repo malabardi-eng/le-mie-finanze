@@ -1,10 +1,13 @@
 <!doctype html>
-<html lang="it">
+<html lang="it" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Le mie finanze</title>
 <meta name="description" content="Entrate, uscite e budget mensile, sincronizzati tra i tuoi dispositivi.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Le mie finanze">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -14,47 +17,54 @@
 <style>
   :root {
     color-scheme: light dark;
-    --bg: #EEF0E9;
-    --surface: #FBFBF6;
-    --surface-2: #F3F4EC;
-    --border: #DBDDD0;
-    --text: #1B221D;
-    --text-muted: #5B655C;
-    --accent: #A9793C;
-    --accent-soft: #EFE3CB;
-    --good: #3F7A57;
-    --good-soft: #DCEBE0;
-    --warn: #B4791E;
-    --warn-soft: #F3E3C4;
-    --danger: #A6392E;
-    --danger-soft: #F5DAD6;
-    --shadow: 0 1px 2px rgba(20,24,18,0.05), 0 1px 1px rgba(20,24,18,0.03);
-    --font-display: "Iowan Old Style", "Sitka Small", Charter, Georgia, "Times New Roman", serif;
-    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    --bg: #EEF3F9;
+    --surface: #FFFFFF;
+    --surface-2: #F2F6FB;
+    --border: #DEE7F1;
+    --text: #172335;
+    --text-muted: #64758C;
+    --accent: #2F6FED;
+    --accent-soft: #E4ECFE;
+    --good: #1FA463;
+    --good-soft: #DDF4E7;
+    --warn: #E8892E;
+    --warn-soft: #FCE9D3;
+    --danger: #E14B3E;
+    --danger-soft: #FBDFDB;
+    --sidebar-bg: #131C2E;
+    --sidebar-text: #AEB9CE;
+    --sidebar-text-active: #FFFFFF;
+    --sidebar-border: rgba(255,255,255,0.08);
+    --shadow: 0 1px 2px rgba(23,35,53,0.04), 0 8px 24px rgba(23,35,53,0.06);
+    --font-display: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-body: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #14181A; --surface: #1B211D; --surface-2: #212722; --border: #2D342C;
-      --text: #E7E6DD; --text-muted: #9AA394; --accent: #CBA05E; --accent-soft: rgba(203,160,94,0.16);
-      --good: #6FAE85; --good-soft: rgba(111,174,133,0.16); --warn: #D9A24B; --warn-soft: rgba(217,162,75,0.16);
-      --danger: #E07A6B; --danger-soft: rgba(224,122,107,0.16);
+      --bg: #0E1520; --surface: #16202D; --surface-2: #1C2735; --border: #283445;
+      --text: #E7EDF5; --text-muted: #8A99AF; --accent: #5B8DEF; --accent-soft: rgba(91,141,239,0.16);
+      --good: #3FC17E; --good-soft: rgba(63,193,126,0.15); --warn: #F0A34E; --warn-soft: rgba(240,163,78,0.15);
+      --danger: #F0685A; --danger-soft: rgba(240,104,90,0.15);
+      --sidebar-bg: #0B121C; --sidebar-text: #8A99AF; --sidebar-text-active: #FFFFFF; --sidebar-border: rgba(255,255,255,0.06);
       --shadow: 0 1px 2px rgba(0,0,0,0.35), 0 1px 1px rgba(0,0,0,0.2);
     }
   }
   :root[data-theme="dark"] {
-    --bg: #14181A; --surface: #1B211D; --surface-2: #212722; --border: #2D342C;
-    --text: #E7E6DD; --text-muted: #9AA394; --accent: #CBA05E; --accent-soft: rgba(203,160,94,0.16);
-    --good: #6FAE85; --good-soft: rgba(111,174,133,0.16); --warn: #D9A24B; --warn-soft: rgba(217,162,75,0.16);
-    --danger: #E07A6B; --danger-soft: rgba(224,122,107,0.16);
+    --bg: #0E1520; --surface: #16202D; --surface-2: #1C2735; --border: #283445;
+    --text: #E7EDF5; --text-muted: #8A99AF; --accent: #5B8DEF; --accent-soft: rgba(91,141,239,0.16);
+    --good: #3FC17E; --good-soft: rgba(63,193,126,0.15); --warn: #F0A34E; --warn-soft: rgba(240,163,78,0.15);
+    --danger: #F0685A; --danger-soft: rgba(240,104,90,0.15);
+    --sidebar-bg: #0B121C; --sidebar-text: #8A99AF; --sidebar-text-active: #FFFFFF; --sidebar-border: rgba(255,255,255,0.06);
     --shadow: 0 1px 2px rgba(0,0,0,0.35), 0 1px 1px rgba(0,0,0,0.2);
   }
   :root[data-theme="light"] {
-    --bg: #EEF0E9; --surface: #FBFBF6; --surface-2: #F3F4EC; --border: #DBDDD0;
-    --text: #1B221D; --text-muted: #5B655C; --accent: #A9793C; --accent-soft: #EFE3CB;
-    --good: #3F7A57; --good-soft: #DCEBE0; --warn: #B4791E; --warn-soft: #F3E3C4;
-    --danger: #A6392E; --danger-soft: #F5DAD6;
-    --shadow: 0 1px 2px rgba(20,24,18,0.05), 0 1px 1px rgba(20,24,18,0.03);
+    --bg: #EEF3F9; --surface: #FFFFFF; --surface-2: #F2F6FB; --border: #DEE7F1;
+    --text: #172335; --text-muted: #64758C; --accent: #2F6FED; --accent-soft: #E4ECFE;
+    --good: #1FA463; --good-soft: #DDF4E7; --warn: #E8892E; --warn-soft: #FCE9D3;
+    --danger: #E14B3E; --danger-soft: #FBDFDB;
+    --sidebar-bg: #131C2E; --sidebar-text: #AEB9CE; --sidebar-text-active: #FFFFFF; --sidebar-border: rgba(255,255,255,0.08);
+    --shadow: 0 1px 2px rgba(23,35,53,0.04), 0 8px 24px rgba(23,35,53,0.06);
   }
 
   * { box-sizing: border-box; }
@@ -147,6 +157,7 @@
   }
   .stat-value.positive { color: var(--good); }
   .stat-value.negative { color: var(--danger); }
+  .stat-value.expense { color: var(--warn); }
   @media (max-width: 400px) { .stat-value { font-size: 1.25rem; } }
   .stat-edit-btn {
     all: unset; cursor: pointer; color: var(--text-muted); font-size: 0.68rem;
@@ -288,7 +299,7 @@
     font-size: 0.78rem; font-weight: 600; color: var(--text-muted);
   }
   .type-toggle button.active.entrata { background: var(--good-soft); color: var(--good); }
-  .type-toggle button.active.uscita { background: var(--danger-soft); color: var(--danger); }
+  .type-toggle button.active.uscita { background: var(--warn-soft); color: var(--warn); }
   .chart-type-toggle {
     font-family: var(--font-body); font-weight: 500;
   }
@@ -331,7 +342,7 @@
   table.tx-table tr:last-child td { border-bottom: none; }
   .tx-amount { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; font-weight: 600; }
   .tx-amount.entrata { color: var(--good); }
-  .tx-amount.uscita { color: var(--danger); }
+  .tx-amount.uscita { color: var(--warn); }
   .tx-cat-pill {
     display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.76rem;
     background: var(--surface-2); border: 1px solid var(--border); border-radius: 99px;
@@ -364,6 +375,84 @@
     z-index: 50; flex-direction: column; gap: 0.6rem;
   }
   .loading-screen.hidden { display: none; }
+
+  /* ================= Dashboard shell ================= */
+  .shell { display: flex; min-height: 100vh; background: var(--bg); align-items: stretch; }
+
+  .sidebar {
+    width: 232px; flex-shrink: 0; background: var(--sidebar-bg); color: var(--sidebar-text);
+    display: flex; flex-direction: column; padding: 1.5rem 1rem; gap: 1rem;
+    position: sticky; top: 0; height: 100vh; box-sizing: border-box;
+  }
+  .sidebar-logo { display: flex; align-items: center; gap: 0.6rem; padding: 0 0.5rem 0.75rem; color: #fff; font-family: var(--font-display); font-weight: 800; font-size: 1.05rem; border-bottom: 1px solid var(--sidebar-border); margin-bottom: 0.25rem; }
+  .sidebar-logo .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+  .sidebar-nav { display: flex; flex-direction: column; gap: 0.2rem; flex: 1; }
+  .sidebar-nav button {
+    all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 0.7rem;
+    width: 100%; padding: 0.6rem 0.7rem; border-radius: 10px; color: var(--sidebar-text);
+    font-family: var(--font-body); font-size: 0.86rem; font-weight: 600;
+  }
+  .sidebar-nav button svg { width: 17px; height: 17px; flex-shrink: 0; }
+  .sidebar-nav button:hover { background: rgba(255,255,255,0.07); color: #fff; }
+  .sidebar-nav button.active { background: var(--accent); color: #fff; }
+  .sidebar-nav button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .sidebar-foot { border-top: 1px solid var(--sidebar-border); padding-top: 0.9rem; font-size: 0.72rem; color: var(--sidebar-text); display: flex; align-items: center; gap: 0.4rem; }
+
+  .main-content { flex: 1; min-width: 0; }
+  .main-content .app { max-width: 1180px; margin: 0 auto; padding: 1.6rem 2rem 4rem; }
+
+  .topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.6rem; }
+  .topbar-title { font-family: var(--font-display); font-weight: 800; font-size: 1.5rem; margin: 0; letter-spacing: -0.01em; }
+  .topbar-sub { color: var(--text-muted); font-size: 0.85rem; margin-top: 0.3rem; display: flex; align-items: center; gap: 0.4rem; }
+  .topbar-right { display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap; row-gap: 0.5rem; }
+
+  .theme-toggle {
+    all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 0.4rem;
+    padding: 0.42rem 0.6rem; border-radius: 10px; border: 1px solid var(--border); background: var(--surface);
+    color: var(--text-muted); font-size: 0.9rem; box-shadow: var(--shadow);
+  }
+  .theme-toggle:hover { color: var(--accent); border-color: var(--accent); }
+  .theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .page-header { margin-bottom: 1.1rem; }
+  .page-header h2 { font-family: var(--font-display); font-weight: 800; font-size: 1.25rem; margin: 0 0 0.2rem; }
+  .page-header p { color: var(--text-muted); font-size: 0.85rem; margin: 0; }
+
+  /* ---------- Trend chart ---------- */
+  .trend-bars { display: flex; align-items: flex-end; gap: 1.1rem; height: 170px; padding: 0.5rem 0.25rem 0; }
+  .trend-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 0.5rem; height: 100%; min-width: 0; }
+  .trend-bar-pair { display: flex; align-items: flex-end; gap: 4px; height: 100%; }
+  .trend-bar { width: 11px; border-radius: 4px 4px 0 0; min-height: 2px; transition: height 0.25s ease; }
+  .trend-bar.income { background: var(--good); }
+  .trend-bar.expense { background: var(--warn); }
+  .trend-month-label { font-size: 0.68rem; color: var(--text-muted); text-transform: capitalize; white-space: nowrap; }
+  .trend-legend { display: flex; gap: 1.25rem; margin-top: 1rem; font-size: 0.78rem; color: var(--text-muted); }
+  .trend-legend .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 0.4rem; }
+  .trend-empty { color: var(--text-muted); font-size: 0.85rem; padding: 1.5rem 0; }
+
+  /* ---------- Bottom nav (mobile) ---------- */
+  .bottom-nav { display: none; }
+
+  @media (max-width: 860px) {
+    .sidebar { display: none; }
+    .main-content .app { padding: 1.25rem 1rem 5.5rem; }
+    .bottom-nav {
+      display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+      background: var(--surface); border-top: 1px solid var(--border);
+      padding: 0.35rem 0.4rem calc(0.35rem + env(safe-area-inset-bottom, 0px));
+      justify-content: space-around; box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+    }
+    .bottom-nav button {
+      all: unset; box-sizing: border-box; cursor: pointer; flex: 1; text-align: center;
+      display: flex; flex-direction: column; align-items: center; gap: 0.2rem;
+      color: var(--text-muted); font-size: 0.64rem; font-weight: 600; padding: 0.35rem 0.4rem; border-radius: 10px;
+    }
+    .bottom-nav button svg { width: 20px; height: 20px; }
+    .bottom-nav button.active { color: var(--accent); }
+  }
 </style>
 </head>
 <body>
@@ -372,132 +461,189 @@
   <div>Caricamento dati…</div>
 </div>
 
-<div class="app">
-  <header class="app-header">
-    <div>
-      <h1>Le mie finanze</h1>
-      <div class="subtitle"><span class="sync-dot" id="syncDot"></span><span id="syncLabel">Connessione…</span></div>
-    </div>
-    <div class="header-right">
-      <div class="month-nav">
-        <button id="prevMonth" aria-label="Mese precedente">‹</button>
-        <span class="month-label" id="monthLabel">—</span>
-        <button id="nextMonth" aria-label="Mese successivo">›</button>
-      </div>
-      <button class="ghost-btn" id="refreshBtn">Aggiorna</button>
-    </div>
-  </header>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="sidebar-logo"><span class="dot"></span>Le mie finanze</div>
+    <nav class="sidebar-nav" id="sidebarNav">
+      <button type="button" class="nav-btn active" data-page="dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.6"></rect><rect x="14" y="3" width="7" height="7" rx="1.6"></rect><rect x="3" y="14" width="7" height="7" rx="1.6"></rect><rect x="14" y="14" width="7" height="7" rx="1.6"></rect></svg>
+        Dashboard
+      </button>
+      <button type="button" class="nav-btn" data-page="movimenti">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h14l-3.5-3.5"></path><path d="M20 17H6l3.5 3.5"></path></svg>
+        Movimenti
+      </button>
+      <button type="button" class="nav-btn" data-page="budget">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="13" rx="2.4"></rect><path d="M2.5 10.5h19"></path><circle cx="17" cy="14.2" r="1.3" fill="currentColor" stroke="none"></circle></svg>
+        Budget
+      </button>
+    </nav>
+    <div class="sidebar-foot"><span class="sync-dot" id="syncDot"></span><span id="syncLabel">Connessione…</span></div>
+  </aside>
 
-  <section class="stats">
-    <div class="stat-tile">
-      <div class="stat-label">
-        <span>Saldo attuale</span>
-        <button class="stat-edit-btn" id="editBalanceBtn">modifica</button>
+  <div class="main-content">
+    <div class="app">
+      <div class="topbar">
+        <div>
+          <h1 class="topbar-title" id="topbarTitle">Ciao Massimo</h1>
+          <div class="topbar-sub"><span id="txMonthHint"></span></div>
+        </div>
+        <div class="topbar-right">
+          <div class="month-nav">
+            <button id="prevMonth" aria-label="Mese precedente">‹</button>
+            <span class="month-label" id="monthLabel">—</span>
+            <button id="nextMonth" aria-label="Mese successivo">›</button>
+          </div>
+          <button class="theme-toggle" id="themeToggle" type="button" aria-label="Cambia tema">🌙</button>
+          <button class="ghost-btn" id="refreshBtn">Aggiorna</button>
+        </div>
       </div>
-      <div id="balanceDisplay" class="stat-value">—</div>
-      <div id="balanceEditRow" class="balance-edit-row" style="display:none;">
-        <input type="number" step="0.01" id="balanceInput" />
-        <button class="btn btn-sm btn-primary" id="saveBalanceBtn">Salva</button>
-      </div>
-    </div>
-    <div class="stat-tile">
-      <div class="stat-label"><span>Entrate del mese</span></div>
-      <div id="statIncome" class="stat-value positive">—</div>
-    </div>
-    <div class="stat-tile">
-      <div class="stat-label"><span>Uscite del mese</span></div>
-      <div id="statExpense" class="stat-value negative">—</div>
-    </div>
-    <div class="stat-tile">
-      <div class="stat-label"><span>Risparmio del mese</span></div>
-      <div id="statSavings" class="stat-value">—</div>
-    </div>
-  </section>
 
-  <div class="grid-main">
-    <div>
-      <div class="card">
-        <h2 class="card-title">Movimenti <span class="hint" id="txMonthHint"></span></h2>
-        <div class="tx-form">
-          <div class="field">
-            <label for="txDate">Data</label>
-            <input type="date" id="txDate" />
-          </div>
-          <div class="field">
-            <label for="txDesc">Descrizione</label>
-            <input type="text" id="txDesc" placeholder="Es. Spesa al supermercato" />
-          </div>
-          <div class="field">
-            <label for="txCategory" id="txCategoryLabel">Categoria</label>
-            <input type="text" id="txCategory" list="txCategoryList" placeholder="Scegli o scrivi (es. Lucia, ADI…)" autocomplete="off" />
-            <datalist id="txCategoryList"></datalist>
-          </div>
-          <div class="field">
-            <label for="txMetodo">Metodo</label>
-            <input type="text" id="txMetodo" list="txMetodoList" placeholder="Contanti, Banca, PayPal…" autocomplete="off" />
-            <datalist id="txMetodoList"></datalist>
-          </div>
-          <div class="field">
-            <label for="txAmount">Importo €</label>
-            <input type="number" step="0.01" min="0" id="txAmount" placeholder="0,00" />
-          </div>
-          <div class="field">
-            <label>Tipo</label>
-            <div class="type-toggle" id="txTypeToggle">
-              <button type="button" class="active entrata" data-type="entrata">Entrata</button>
-              <button type="button" class="uscita" data-type="uscita">Uscita</button>
+      <section class="page active" id="page-dashboard">
+        <section class="stats">
+          <div class="stat-tile">
+            <div class="stat-label">
+              <span>Saldo attuale</span>
+              <button class="stat-edit-btn" id="editBalanceBtn">modifica</button>
+            </div>
+            <div id="balanceDisplay" class="stat-value">—</div>
+            <div id="balanceEditRow" class="balance-edit-row" style="display:none;">
+              <input type="number" step="0.01" id="balanceInput" />
+              <button class="btn btn-sm btn-primary" id="saveBalanceBtn">Salva</button>
             </div>
           </div>
-          <div class="field">
-            <label>&nbsp;</label>
-            <button class="btn btn-primary" id="addTxBtn">Aggiungi</button>
+          <div class="stat-tile">
+            <div class="stat-label"><span>Entrate del mese</span></div>
+            <div id="statIncome" class="stat-value positive">—</div>
           </div>
-        </div>
-        <div class="tx-filter-row">
-          <input type="search" id="txSearch" placeholder="Cerca nella descrizione…" />
-          <select id="txCategoryFilter">
-            <option value="">Tutte le categorie</option>
-          </select>
-          <select id="txMetodoFilter">
-            <option value="">Tutti i metodi</option>
-          </select>
-          <button class="btn btn-sm" id="clearFilterBtn" style="display:none;">Cancella filtro</button>
-        </div>
-        <div class="tx-table-wrap">
-          <table class="tx-table" id="txTable">
-            <thead>
-              <tr><th>Data</th><th>Descrizione</th><th>Categoria</th><th>Metodo</th><th style="text-align:right;">Importo</th><th></th></tr>
-            </thead>
-            <tbody id="txTableBody"></tbody>
-          </table>
-          <div class="tx-empty" id="txEmpty" style="display:none;">Nessun movimento in questo mese. Aggiungine uno qui sopra.</div>
-        </div>
-        <div class="tx-filter-total" id="txFilterSummary" style="display:none;"></div>
-      </div>
-    </div>
+          <div class="stat-tile">
+            <div class="stat-label"><span>Uscite del mese</span></div>
+            <div id="statExpense" class="stat-value expense">—</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-label"><span>Risparmio del mese</span></div>
+            <div id="statSavings" class="stat-value">—</div>
+          </div>
+        </section>
 
-    <div>
-      <div class="card">
-        <h2 class="card-title">Budget mensile</h2>
-        <div id="budgetList"></div>
-        <div class="add-category-row">
-          <input type="text" id="newCategoryInput" placeholder="Nuova categoria…" />
-          <button class="btn btn-sm" id="addCategoryBtn">Aggiungi</button>
-        </div>
-      </div>
-      <div class="card">
-        <h2 class="card-title">
-          Ripartizione
-          <div class="type-toggle chart-type-toggle" id="chartTypeToggle">
-            <button type="button" class="active uscita" data-chart-type="uscita">Spese</button>
-            <button type="button" class="entrata" data-chart-type="entrata">Entrate</button>
+        <div class="grid-main">
+          <div class="card">
+            <h2 class="card-title">Andamento mensile <span class="hint">ultimi 6 mesi</span></h2>
+            <div id="trendChartWrap"></div>
+            <div class="trend-legend">
+              <span><span class="dot" style="background:var(--good)"></span>Entrate</span>
+              <span><span class="dot" style="background:var(--warn)"></span>Uscite</span>
+            </div>
           </div>
-        </h2>
-        <div class="chart-wrap" id="chartWrap"></div>
-      </div>
+          <div class="card">
+            <h2 class="card-title">
+              Ripartizione
+              <div class="type-toggle chart-type-toggle" id="chartTypeToggle">
+                <button type="button" class="active uscita" data-chart-type="uscita">Spese</button>
+                <button type="button" class="entrata" data-chart-type="entrata">Entrate</button>
+              </div>
+            </h2>
+            <div class="chart-wrap" id="chartWrap"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-movimenti">
+        <div class="page-header">
+          <h2>Movimenti</h2>
+          <p>Aggiungi un movimento e consulta la cronologia del mese.</p>
+        </div>
+        <div class="card">
+          <div class="tx-form">
+            <div class="field">
+              <label for="txDate">Data</label>
+              <input type="date" id="txDate" />
+            </div>
+            <div class="field">
+              <label for="txDesc">Descrizione</label>
+              <input type="text" id="txDesc" placeholder="Es. Spesa al supermercato" />
+            </div>
+            <div class="field">
+              <label for="txCategory" id="txCategoryLabel">Categoria</label>
+              <input type="text" id="txCategory" list="txCategoryList" placeholder="Scegli o scrivi (es. Lucia, ADI…)" autocomplete="off" />
+              <datalist id="txCategoryList"></datalist>
+            </div>
+            <div class="field">
+              <label for="txMetodo">Metodo</label>
+              <input type="text" id="txMetodo" list="txMetodoList" placeholder="Contanti, Banca, PayPal…" autocomplete="off" />
+              <datalist id="txMetodoList"></datalist>
+            </div>
+            <div class="field">
+              <label for="txAmount">Importo €</label>
+              <input type="number" step="0.01" min="0" id="txAmount" placeholder="0,00" />
+            </div>
+            <div class="field">
+              <label>Tipo</label>
+              <div class="type-toggle" id="txTypeToggle">
+                <button type="button" class="active entrata" data-type="entrata">Entrata</button>
+                <button type="button" class="uscita" data-type="uscita">Uscita</button>
+              </div>
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button class="btn btn-primary" id="addTxBtn">Aggiungi</button>
+            </div>
+          </div>
+          <div class="tx-filter-row">
+            <input type="search" id="txSearch" placeholder="Cerca nella descrizione…" />
+            <select id="txCategoryFilter">
+              <option value="">Tutte le categorie</option>
+            </select>
+            <select id="txMetodoFilter">
+              <option value="">Tutti i metodi</option>
+            </select>
+            <button class="btn btn-sm" id="clearFilterBtn" style="display:none;">Cancella filtro</button>
+          </div>
+          <div class="tx-table-wrap">
+            <table class="tx-table" id="txTable">
+              <thead>
+                <tr><th>Data</th><th>Descrizione</th><th>Categoria</th><th>Metodo</th><th style="text-align:right;">Importo</th><th></th></tr>
+              </thead>
+              <tbody id="txTableBody"></tbody>
+            </table>
+            <div class="tx-empty" id="txEmpty" style="display:none;">Nessun movimento in questo mese. Aggiungine uno qui sopra.</div>
+          </div>
+          <div class="tx-filter-total" id="txFilterSummary" style="display:none;"></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-budget">
+        <div class="page-header">
+          <h2>Budget</h2>
+          <p>Imposta un budget per categoria e tieni sotto controllo la spesa del mese.</p>
+        </div>
+        <div class="card">
+          <h2 class="card-title">Budget mensile</h2>
+          <div id="budgetList"></div>
+          <div class="add-category-row">
+            <input type="text" id="newCategoryInput" placeholder="Nuova categoria…" />
+            <button class="btn btn-sm" id="addCategoryBtn">Aggiungi</button>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
 </div>
+
+<nav class="bottom-nav" id="bottomNav">
+  <button type="button" class="nav-btn active" data-page="dashboard">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.6"></rect><rect x="14" y="3" width="7" height="7" rx="1.6"></rect><rect x="3" y="14" width="7" height="7" rx="1.6"></rect><rect x="14" y="14" width="7" height="7" rx="1.6"></rect></svg>
+    Dashboard
+  </button>
+  <button type="button" class="nav-btn" data-page="movimenti">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h14l-3.5-3.5"></path><path d="M20 17H6l3.5 3.5"></path></svg>
+    Movimenti
+  </button>
+  <button type="button" class="nav-btn" data-page="budget">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="13" rx="2.4"></rect><path d="M2.5 10.5h19"></path><circle cx="17" cy="14.2" r="1.3" fill="currentColor" stroke="none"></circle></svg>
+    Budget
+  </button>
+</nav>
 
 <div class="toast" id="toast"></div>
 
@@ -647,7 +793,44 @@
     renderCategorySelect();
     renderBudgets();
     renderChart();
+    renderTrendChart();
     renderTransactions();
+  }
+
+  // ---------- Andamento mensile (ultimi 6 mesi) ----------
+  function renderTrendChart() {
+    var wrap = document.getElementById("trendChartWrap");
+    if (!wrap) return;
+    var months = [];
+    for (var i = 5; i >= 0; i--) months.push(shiftMonth(currentMonth, -i));
+
+    var totals = months.map(function (ym) {
+      var tx = txForMonth(ym);
+      var income = tx.filter(function (t) { return t.type === "entrata"; }).reduce(function (s, t) { return s + t.amount; }, 0);
+      var expense = tx.filter(function (t) { return t.type === "uscita"; }).reduce(function (s, t) { return s + t.amount; }, 0);
+      return { ym: ym, income: income, expense: expense };
+    });
+
+    var max = totals.reduce(function (m, t) { return Math.max(m, t.income, t.expense); }, 0);
+    if (max === 0) {
+      wrap.innerHTML = '<div class="trend-empty">Nessun movimento negli ultimi 6 mesi.</div>';
+      return;
+    }
+
+    var cols = totals.map(function (t) {
+      var incH = Math.round((t.income / max) * 148) || 0;
+      var expH = Math.round((t.expense / max) * 148) || 0;
+      var label = monthLabel(t.ym).split(" ")[0].slice(0, 3);
+      return '<div class="trend-col" title="' + escapeHtml(monthLabel(t.ym)) + ': entrate ' + fmtEUR.format(t.income) + ', uscite ' + fmtEUR.format(t.expense) + '">' +
+        '<div class="trend-bar-pair">' +
+          '<div class="trend-bar income" style="height:' + Math.max(incH, t.income > 0 ? 2 : 0) + 'px"></div>' +
+          '<div class="trend-bar expense" style="height:' + Math.max(expH, t.expense > 0 ? 2 : 0) + 'px"></div>' +
+        '</div>' +
+        '<div class="trend-month-label">' + escapeHtml(label) + '</div>' +
+      '</div>';
+    }).join("");
+
+    wrap.innerHTML = '<div class="trend-bars">' + cols + '</div>';
   }
 
   function renderStats() {
@@ -944,6 +1127,38 @@
       });
     });
   }
+
+  // ---------- Navigazione pagine (sidebar + barra mobile) ----------
+  var PAGE_TITLES = { dashboard: "Ciao Massimo", movimenti: "Movimenti", budget: "Budget" };
+  function goToPage(page) {
+    document.querySelectorAll(".page").forEach(function (el) {
+      el.classList.toggle("active", el.id === "page-" + page);
+    });
+    document.querySelectorAll(".sidebar-nav .nav-btn, .bottom-nav .nav-btn").forEach(function (btn) {
+      btn.classList.toggle("active", btn.getAttribute("data-page") === page);
+    });
+    document.getElementById("topbarTitle").textContent = PAGE_TITLES[page] || "Le mie finanze";
+  }
+  document.querySelectorAll(".sidebar-nav .nav-btn, .bottom-nav .nav-btn").forEach(function (btn) {
+    btn.addEventListener("click", function () { goToPage(btn.getAttribute("data-page")); });
+  });
+
+  // ---------- Tema chiaro/scuro ----------
+  function applyTheme(mode) {
+    document.documentElement.setAttribute("data-theme", mode);
+    document.getElementById("themeToggle").textContent = mode === "dark" ? "☀️" : "🌙";
+    try { localStorage.setItem("finanze-theme", mode); } catch (e) {}
+  }
+  document.getElementById("themeToggle").addEventListener("click", function () {
+    var current = document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+    applyTheme(current === "dark" ? "light" : "dark");
+  });
+  (function initTheme() {
+    var saved = null;
+    try { saved = localStorage.getItem("finanze-theme"); } catch (e) {}
+    if (saved === "dark" || saved === "light") applyTheme(saved);
+    else applyTheme(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  })();
 
   // ---------- Eventi ----------
   document.getElementById("prevMonth").addEventListener("click", function () { currentMonth = shiftMonth(currentMonth, -1); renderAll(); });
