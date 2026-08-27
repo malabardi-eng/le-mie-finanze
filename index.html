@@ -356,6 +356,9 @@
     white-space: nowrap;
   }
   .tx-metodo-empty { color: var(--text-muted); opacity: 0.5; font-size: 0.8rem; }
+  .tx-actions-cell { white-space: nowrap; text-align: right; }
+  .tx-edit { all: unset; cursor: pointer; color: var(--text-muted); font-size: 0.85rem; padding: 0.1rem 0.3rem; border-radius: 5px; margin-right: 0.3rem; }
+  .tx-edit:hover { color: var(--accent); background: var(--accent-soft); }
   .tx-del { all: unset; cursor: pointer; color: var(--text-muted); font-size: 0.9rem; }
   .tx-del:hover { color: var(--danger); }
   .tx-empty { color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 2rem 0; }
@@ -592,7 +595,10 @@
             </div>
             <div class="field">
               <label>&nbsp;</label>
-              <button class="btn btn-primary" id="addTxBtn">Aggiungi</button>
+              <div style="display:flex; gap:0.4rem;">
+                <button class="btn btn-primary" id="addTxBtn">Aggiungi</button>
+                <button class="btn btn-sm" id="cancelEditBtn" type="button" style="display:none;">Annulla</button>
+              </div>
             </div>
           </div>
           <div class="tx-filter-row">
@@ -702,6 +708,7 @@
   var today = new Date();
   var currentMonth = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0");
   var currentTxType = "entrata";
+  var editingTxId = null;
   var filterText = "";
   var filterCategory = "";
   var filterMetodo = "";
@@ -1141,13 +1148,22 @@
         '<td><span class="tx-cat-pill"><span class="cat-dot" style="background:' + catColor(t.category) + '"></span>' + escapeHtml(t.category) + '</span></td>' +
         '<td>' + (t.metodo ? '<span class="tx-metodo-pill">' + escapeHtml(t.metodo) + '</span>' : '<span class="tx-metodo-empty">—</span>') + '</td>' +
         '<td class="tx-amount ' + t.type + '">' + (t.type === "entrata" ? "+" : "−") + fmtEUR.format(t.amount).replace("€", "").trim() + " €</td>" +
-        '<td><button class="tx-del" data-id="' + t.id + '" title="Elimina movimento">✕</button></td>' +
+        '<td class="tx-actions-cell"><button class="tx-edit" data-id="' + t.id + '" title="Modifica movimento">✎</button><button class="tx-del" data-id="' + t.id + '" title="Elimina movimento">✕</button></td>' +
       '</tr>';
     }).join("");
+
+    tbody.querySelectorAll(".tx-edit").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var id = btn.getAttribute("data-id");
+        var tx = state.transactions.filter(function (t) { return String(t.id) === id; })[0];
+        if (tx) enterEditMode(tx);
+      });
+    });
 
     tbody.querySelectorAll(".tx-del").forEach(function (btn) {
       btn.addEventListener("click", function () {
         var id = btn.getAttribute("data-id");
+        if (editingTxId && String(editingTxId) === id) cancelEdit();
         state.transactions = state.transactions.filter(function (t) { return String(t.id) !== id; });
         renderAll();
         sbFetch("/finanze_movimenti?id=eq." + encodeURIComponent(id), { method: "DELETE" })
@@ -1160,6 +1176,7 @@
   // ---------- Navigazione pagine (sidebar + barra mobile) ----------
   var PAGE_TITLES = { dashboard: "Ciao Massimo", movimenti: "Movimenti", budget: "Budget" };
   function goToPage(page) {
+    if (page !== "movimenti" && editingTxId) cancelEdit();
     document.querySelectorAll(".page").forEach(function (el) {
       el.classList.toggle("active", el.id === "page-" + page);
     });
@@ -1229,6 +1246,45 @@
     }
   }
 
+  // ---------- Modifica di un movimento esistente ----------
+  function setTxTypeToggle(type) {
+    var toggle = document.getElementById("txTypeToggle");
+    toggle.querySelectorAll("button").forEach(function (b) {
+      b.classList.toggle("active", b.getAttribute("data-type") === type);
+    });
+  }
+
+  function enterEditMode(tx) {
+    editingTxId = tx.id;
+    document.getElementById("txDate").value = tx.date;
+    document.getElementById("txDesc").value = tx.desc || "";
+    document.getElementById("txCategory").value = tx.category || "";
+    document.getElementById("txMetodo").value = tx.metodo || "";
+    document.getElementById("txAmount").value = tx.amount;
+    currentTxType = tx.type;
+    setTxTypeToggle(currentTxType);
+    updateCategoryHint();
+    document.getElementById("addTxBtn").textContent = "Salva modifiche";
+    document.getElementById("cancelEditBtn").style.display = "inline-flex";
+    document.getElementById("txDate").scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  function cancelEdit() {
+    editingTxId = null;
+    document.getElementById("txDate").value = today.toISOString().slice(0, 10);
+    document.getElementById("txDesc").value = "";
+    document.getElementById("txCategory").value = "";
+    document.getElementById("txMetodo").value = "";
+    document.getElementById("txAmount").value = "";
+    currentTxType = "entrata";
+    setTxTypeToggle(currentTxType);
+    updateCategoryHint();
+    document.getElementById("addTxBtn").textContent = "Aggiungi";
+    document.getElementById("cancelEditBtn").style.display = "none";
+  }
+
+  document.getElementById("cancelEditBtn").addEventListener("click", function () { cancelEdit(); });
+
   document.getElementById("txTypeToggle").addEventListener("click", function (e) {
     var btn = e.target.closest("button[data-type]");
     if (!btn) return;
@@ -1261,6 +1317,18 @@
       });
   }
 
+  function updateMovimento(id, payload) {
+    return sbFetch("/finanze_movimenti?id=eq." + encodeURIComponent(id), { method: "PATCH", body: payload, prefer: "return=representation" })
+      .catch(function (err) {
+        if (Object.prototype.hasOwnProperty.call(payload, "metodo")) {
+          var fallback = {};
+          for (var k in payload) if (k !== "metodo") fallback[k] = payload[k];
+          return sbFetch("/finanze_movimenti?id=eq." + encodeURIComponent(id), { method: "PATCH", body: fallback, prefer: "return=representation" });
+        }
+        throw err;
+      });
+  }
+
   document.getElementById("addTxBtn").addEventListener("click", function () {
     var dateEl = document.getElementById("txDate");
     var descEl = document.getElementById("txDesc");
@@ -1287,7 +1355,56 @@
     };
     if (metodo) payload.metodo = metodo;
 
+    // Se è un'uscita con una categoria mai vista prima, la aggiunge automaticamente
+    // al budget mensile (per le entrate no: lì la "categoria" è spesso solo una fonte,
+    // es. "Lucia", e non deve intasare la lista dei budget di spesa). Metodo nuovo
+    // (es. una carta non ancora usata): lo aggiunge all'elenco suggerimenti.
+    function syncNewCategoryAndMetodo() {
+      if (currentTxType === "uscita" && state.categories.indexOf(categoria) < 0) {
+        var ordine = state.categories.length;
+        state.categories.push(categoria);
+        state.budgets[categoria] = 0;
+        sbFetch("/finanze_categorie", { method: "POST", body: { nome: categoria, budget: 0, ordine: ordine } })
+          .catch(function () {});
+      }
+      if (metodo && state.metodi.indexOf(metodo) < 0) {
+        var metodoOrdine = state.metodi.length;
+        state.metodi.push(metodo);
+        sbFetch("/finanze_metodi", { method: "POST", body: { nome: metodo, ordine: metodoOrdine } })
+          .catch(function () {});
+      }
+    }
+
     addBtn.disabled = true;
+
+    if (editingTxId) {
+      var editId = editingTxId;
+      updateMovimento(editId, payload)
+        .then(function (rows) {
+          var row = (rows && rows[0]) || null;
+          var updated = {
+            id: editId,
+            date: row ? row.data : date,
+            desc: row ? row.descrizione : payload.descrizione,
+            category: row ? row.categoria : categoria,
+            amount: row ? Number(row.importo) : payload.importo,
+            type: row ? row.tipo : currentTxType,
+            metodo: row ? (row.metodo || "") : metodo
+          };
+          state.transactions = state.transactions.map(function (t) {
+            return String(t.id) === String(editId) ? updated : t;
+          });
+          currentMonth = updated.date.slice(0, 7);
+          syncNewCategoryAndMetodo();
+          cancelEdit();
+          renderAll();
+          showToast("Movimento aggiornato");
+        })
+        .catch(function () { showToast("Errore nell'aggiornare il movimento", true); })
+        .then(function () { addBtn.disabled = false; });
+      return;
+    }
+
     insertMovimento(payload)
       .then(function (rows) {
         var row = rows[0];
@@ -1295,27 +1412,7 @@
         currentMonth = date.slice(0, 7);
         descEl.value = "";
         amountEl.value = "";
-
-        // Se è un'uscita con una categoria mai vista prima, la aggiunge automaticamente
-        // al budget mensile (per le entrate no: lì la "categoria" è spesso solo una fonte,
-        // es. "Lucia", e non deve intasare la lista dei budget di spesa).
-        if (currentTxType === "uscita" && state.categories.indexOf(categoria) < 0) {
-          var ordine = state.categories.length;
-          state.categories.push(categoria);
-          state.budgets[categoria] = 0;
-          sbFetch("/finanze_categorie", { method: "POST", body: { nome: categoria, budget: 0, ordine: ordine } })
-            .catch(function () {});
-        }
-
-        // Metodo nuovo (es. una carta non ancora usata): lo aggiunge all'elenco
-        // suggerimenti per i prossimi movimenti, sia in entrata che in uscita.
-        if (metodo && state.metodi.indexOf(metodo) < 0) {
-          var metodoOrdine = state.metodi.length;
-          state.metodi.push(metodo);
-          sbFetch("/finanze_metodi", { method: "POST", body: { nome: metodo, ordine: metodoOrdine } })
-            .catch(function () {});
-        }
-
+        syncNewCategoryAndMetodo();
         renderAll();
         showToast("Movimento aggiunto");
       })
