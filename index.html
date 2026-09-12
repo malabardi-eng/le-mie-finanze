@@ -767,6 +767,21 @@
     return PALETTE[hash % PALETTE.length];
   }
 
+  // Valori di "Metodo" da nascondere nei menu/suggerimenti perché sono refusi residui
+  // (es. digitati per sbaglio in passato). Non tocca il database: se un vecchio
+  // movimento li usasse ancora, resterebbe intatto e visibile nella sua riga.
+  var METODI_HIDDEN = ["co"];
+  function cleanMetodiForDisplay(list) {
+    var seen = {}, out = [];
+    list.forEach(function (m) {
+      var key = (m || "").trim().toLowerCase();
+      if (!key || METODI_HIDDEN.indexOf(key) >= 0 || seen[key]) return;
+      seen[key] = true;
+      out.push(m);
+    });
+    return out;
+  }
+
   function monthLabel(ym) {
     var parts = ym.split("-");
     var y = parseInt(parts[0], 10), m = parseInt(parts[1], 10) - 1;
@@ -921,6 +936,7 @@
     state.transactions.forEach(function (t) {
       if (t.metodo && allMetodi.indexOf(t.metodo) < 0) allMetodi.push(t.metodo);
     });
+    allMetodi = cleanMetodiForDisplay(allMetodi);
     var metodoList = document.getElementById("txMetodoList");
     metodoList.innerHTML = allMetodi.map(function (m) {
       return '<option value="' + escapeHtml(m) + '"></option>';
@@ -1101,17 +1117,20 @@
     var filtering = isFilterActive();
     clearBtn.style.display = filtering ? "inline-flex" : "none";
 
+    // I filtri restano sempre dentro il mese mostrato in alto (non cercano più in
+    // tutta la cronologia): per vedere un altro mese si cambia mese con le frecce.
+    var monthTx = txForMonth(currentMonth);
     var list;
     if (filtering) {
       var needle = filterText.trim().toLowerCase();
-      list = state.transactions.filter(function (t) {
+      list = monthTx.filter(function (t) {
         var matchesText = !needle || (t.desc || "").toLowerCase().indexOf(needle) >= 0;
         var matchesCat = !filterCategory || t.category === filterCategory;
         var matchesMetodo = !filterMetodo || t.metodo === filterMetodo;
         return matchesText && matchesCat && matchesMetodo;
       });
     } else {
-      list = txForMonth(currentMonth);
+      list = monthTx;
     }
     list = list.slice().sort(function (a, b) { return b.date.localeCompare(a.date); });
 
@@ -1126,7 +1145,9 @@
         figures += '<span class="figure-item">Netto <strong style="color:' + (net >= 0 ? "var(--good)" : "var(--danger)") + '">' + fmtEUR.format(net) + '</strong></span>';
       }
       summary.style.display = "flex";
-      summary.innerHTML = '<span class="label">' + list.length + (list.length === 1 ? " movimento trovato" : " movimenti trovati") + ' in tutta la cronologia</span>' +
+      var monthLbl = monthLabel(currentMonth);
+      var preposizione = /^[aeiou]/i.test(monthLbl) ? "ad" : "a";
+      summary.innerHTML = '<span class="label">' + list.length + (list.length === 1 ? " movimento trovato" : " movimenti trovati") + ' ' + preposizione + ' ' + escapeHtml(monthLbl) + '</span>' +
         '<span class="figures">' + figures + '</span>';
     } else {
       summary.style.display = "none";
