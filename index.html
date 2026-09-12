@@ -438,6 +438,26 @@
   .trend-legend .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 0.4rem; }
   .trend-empty { color: var(--text-muted); font-size: 0.85rem; padding: 1.5rem 0; }
 
+  /* ---------- Riepilogo anno ---------- */
+  .year-row {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.6rem 0.3rem; border-bottom: 1px solid var(--border); font-size: 0.88rem;
+  }
+  .year-row:last-of-type { border-bottom: none; }
+  .year-row.has-data { cursor: pointer; }
+  .year-row.has-data:hover { background: var(--surface-2); }
+  .year-row-chevron { width: 0.9rem; flex-shrink: 0; color: var(--text-muted); font-size: 0.7rem; }
+  .year-row-month { flex: 1; text-transform: capitalize; color: var(--text); font-weight: 500; }
+  .year-row.current .year-row-month { color: var(--accent); font-weight: 700; }
+  .year-row-amount { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--warn); font-weight: 600; }
+  .year-row:not(.has-data) .year-row-amount { color: var(--text-muted); font-weight: 400; }
+  .year-total-row { border-top: 2px solid var(--border); border-bottom: none; margin-top: 0.3rem; padding-top: 0.9rem; }
+  .year-total-row .year-row-month, .year-total-row .year-row-amount { font-weight: 800; font-size: 0.95rem; }
+  .year-row-detail {
+    padding: 0.6rem 0.7rem 0.8rem 2.1rem; margin: 0.1rem 0 0.4rem; border-radius: 8px;
+    background: var(--surface-2); display: flex; flex-direction: column; gap: 0.4rem;
+  }
+
   /* ---------- Bottom nav (mobile) ---------- */
   .bottom-nav { display: none; }
 
@@ -554,6 +574,18 @@
             </h2>
             <div class="chart-wrap" id="chartWrap"></div>
           </div>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title">
+            <span>Riepilogo anno</span>
+            <div class="month-nav" id="yearNav">
+              <button id="prevYear" aria-label="Anno precedente">‹</button>
+              <span class="month-label" id="yearLabel">—</span>
+              <button id="nextYear" aria-label="Anno successivo">›</button>
+            </div>
+          </h2>
+          <div id="yearSummaryList"></div>
         </div>
       </section>
 
@@ -713,6 +745,8 @@
   var filterCategory = "";
   var filterMetodo = "";
   var chartType = "uscita";
+  var summaryYear = parseInt(currentMonth.slice(0, 4), 10);
+  var expandedSummaryMonth = null;
 
   // ---------- Sincronizzazione con Supabase ----------
   function setSyncStatus(mode, label) {
@@ -822,8 +856,70 @@
     renderBudgets();
     renderChart();
     renderTrendChart();
+    renderYearSummary();
     renderTransactions();
   }
+
+  // ---------- Riepilogo anno (spesa mese per mese, con dettaglio per categoria) ----------
+  function renderYearMonthDetail(ym) {
+    var monthTx = txForMonth(ym).filter(function (t) { return t.type === "uscita"; });
+    var byCat = {}, total = 0;
+    monthTx.forEach(function (t) { byCat[t.category] = (byCat[t.category] || 0) + t.amount; total += t.amount; });
+    var cats = Object.keys(byCat).sort(function (a, b) { return byCat[b] - byCat[a]; });
+    if (!cats.length) return '<div class="year-row-detail"><div class="donut-empty">Nessuna spesa questo mese.</div></div>';
+    var items = cats.map(function (cat) {
+      return '<div class="legend-item"><span class="cat-dot" style="background:' + catColor(cat) + '"></span>' +
+        '<span class="legend-name">' + escapeHtml(cat) + '</span>' +
+        '<span class="legend-value">' + fmtEUR.format(byCat[cat]) + '</span></div>';
+    }).join("");
+    return '<div class="year-row-detail">' + items + '</div>';
+  }
+
+  function renderYearSummary() {
+    var listEl = document.getElementById("yearSummaryList");
+    if (!listEl) return;
+    document.getElementById("yearLabel").textContent = String(summaryYear);
+
+    var totalYear = 0;
+    var rows = "";
+    for (var m = 1; m <= 12; m++) {
+      var ym = summaryYear + "-" + String(m).padStart(2, "0");
+      var monthExpense = txForMonth(ym)
+        .filter(function (t) { return t.type === "uscita"; })
+        .reduce(function (s, t) { return s + t.amount; }, 0);
+      var hasData = monthExpense > 0;
+      totalYear += monthExpense;
+      var isCurrent = ym === currentMonth;
+      var isExpanded = expandedSummaryMonth === ym;
+      rows += '<div class="year-row' + (isCurrent ? ' current' : '') + (hasData ? ' has-data' : '') + '" data-ym="' + ym + '">' +
+        '<span class="year-row-chevron">' + (hasData ? (isExpanded ? "▾" : "▸") : "") + '</span>' +
+        '<span class="year-row-month">' + MONTH_NAMES[m - 1] + '</span>' +
+        '<span class="year-row-amount">' + (hasData ? fmtEUR.format(monthExpense) : "—") + '</span>' +
+      '</div>';
+      if (isExpanded) rows += renderYearMonthDetail(ym);
+    }
+    rows += '<div class="year-row year-total-row"><span class="year-row-chevron"></span><span class="year-row-month">Totale anno</span><span class="year-row-amount">' + fmtEUR.format(totalYear) + '</span></div>';
+    listEl.innerHTML = rows;
+
+    listEl.querySelectorAll(".year-row.has-data").forEach(function (row) {
+      row.addEventListener("click", function () {
+        var ym = row.getAttribute("data-ym");
+        expandedSummaryMonth = expandedSummaryMonth === ym ? null : ym;
+        renderYearSummary();
+      });
+    });
+  }
+
+  document.getElementById("prevYear").addEventListener("click", function () {
+    summaryYear -= 1;
+    expandedSummaryMonth = null;
+    renderYearSummary();
+  });
+  document.getElementById("nextYear").addEventListener("click", function () {
+    summaryYear += 1;
+    expandedSummaryMonth = null;
+    renderYearSummary();
+  });
 
   // ---------- Andamento mensile (ultimi 6 mesi) ----------
   function renderTrendChart() {
