@@ -307,6 +307,31 @@
   }
   .chart-type-toggle button { padding: 0.3rem 0.65rem; font-size: 0.72rem; }
 
+  /* ---------- Dettagli regalo (visibili solo con categoria "Regali") ---------- */
+  .gift-fields {
+    display: none; grid-template-columns: 1fr 1.4fr 1fr; gap: 0.55rem;
+    margin: -0.4rem 0 1.1rem; padding: 0.75rem; border-radius: 10px;
+    background: var(--surface-2); border: 1px dashed var(--border);
+  }
+  .gift-fields.show { display: grid; }
+  .gift-fields .field input { background: var(--surface); }
+  .gift-fields-title { grid-column: 1 / -1; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); }
+  @container (max-width: 640px) { .gift-fields { grid-template-columns: 1fr; } }
+  @supports not (container-type: inline-size) {
+    @media (max-width: 700px) { .gift-fields { grid-template-columns: 1fr; } }
+  }
+  .tx-gift-sub { display: block; font-size: 0.74rem; color: var(--text-muted); margin-top: 0.15rem; }
+  .gift-summary { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem; }
+  .gift-chip {
+    display: inline-flex; align-items: baseline; gap: 0.4rem; font-size: 0.78rem;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 99px; padding: 0.25rem 0.7rem;
+  }
+  .gift-chip strong { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700; }
+  .gift-warning {
+    font-size: 0.82rem; padding: 0.7rem 0.85rem; border-radius: 10px; margin-bottom: 1rem;
+    background: var(--warn-soft); color: var(--text); border: 1px solid var(--border);
+  }
+
   /* ---------- Transactions filter ---------- */
   .tx-filter-row {
     display: flex; gap: 0.55rem; margin-bottom: 0.75rem; flex-wrap: wrap;
@@ -502,6 +527,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="13" rx="2.4"></rect><path d="M2.5 10.5h19"></path><circle cx="17" cy="14.2" r="1.3" fill="currentColor" stroke="none"></circle></svg>
         Budget
       </button>
+      <button type="button" class="nav-btn" data-page="regali">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"></rect><path d="M5 12v8h14v-8"></path><path d="M12 8v12"></path><path d="M12 8c-1.5-3-5-3.5-5-1.2C7 8 9 8 12 8z"></path><path d="M12 8c1.5-3 5-3.5 5-1.2C17 8 15 8 12 8z"></path></svg>
+        Regali
+      </button>
     </nav>
     <div class="sidebar-foot"><span class="sync-dot" id="syncDot"></span><span id="syncLabel">Connessione…</span></div>
   </aside>
@@ -633,6 +662,23 @@
               </div>
             </div>
           </div>
+          <div class="gift-fields" id="giftFields">
+            <div class="gift-fields-title">🎁 Dettagli del regalo</div>
+            <div class="field">
+              <label for="giftTo">A chi</label>
+              <input type="text" id="giftTo" list="giftToList" placeholder="Es. Ele, Filo…" autocomplete="off" />
+              <datalist id="giftToList"></datalist>
+            </div>
+            <div class="field">
+              <label for="giftWhat">Cosa</label>
+              <input type="text" id="giftWhat" placeholder="Es. Scarpe, buono King Sport…" autocomplete="off" />
+            </div>
+            <div class="field">
+              <label for="giftOccasion">Occasione</label>
+              <input type="text" id="giftOccasion" list="giftOccasionList" placeholder="Compleanno, Natale…" autocomplete="off" />
+              <datalist id="giftOccasionList"></datalist>
+            </div>
+          </div>
           <div class="tx-filter-row">
             <input type="search" id="txSearch" placeholder="Cerca nella descrizione…" />
             <select id="txCategoryFilter">
@@ -670,6 +716,38 @@
           </div>
         </div>
       </section>
+
+      <section class="page" id="page-regali">
+        <div class="page-header">
+          <h2>Regali</h2>
+          <p>Tutti i regali fatti: a chi, cosa, per quale occasione e quando.</p>
+        </div>
+        <div class="card">
+          <h2 class="card-title">
+            <span>Registro regali</span>
+            <div class="month-nav">
+              <button id="prevGiftYear" aria-label="Anno precedente">‹</button>
+              <span class="month-label" id="giftYearLabel">—</span>
+              <button id="nextGiftYear" aria-label="Anno successivo">›</button>
+            </div>
+          </h2>
+          <div class="gift-warning" id="giftWarning" style="display:none;"></div>
+          <div class="tx-filter-row">
+            <select id="giftPersonFilter"><option value="">Tutte le persone</option></select>
+            <select id="giftOccasionFilter"><option value="">Tutte le occasioni</option></select>
+          </div>
+          <div class="gift-summary" id="giftSummary"></div>
+          <div class="tx-table-wrap">
+            <table class="tx-table">
+              <thead>
+                <tr><th>Data</th><th>A chi</th><th>Cosa</th><th>Occasione</th><th style="text-align:right;">Importo</th><th></th></tr>
+              </thead>
+              <tbody id="giftTableBody"></tbody>
+            </table>
+            <div class="tx-empty" id="giftEmpty" style="display:none;">Nessun regalo registrato in quest'anno.</div>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
 </div>
@@ -686,6 +764,10 @@
   <button type="button" class="nav-btn" data-page="budget">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="13" rx="2.4"></rect><path d="M2.5 10.5h19"></path><circle cx="17" cy="14.2" r="1.3" fill="currentColor" stroke="none"></circle></svg>
     Budget
+  </button>
+  <button type="button" class="nav-btn" data-page="regali">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"></rect><path d="M5 12v8h14v-8"></path><path d="M12 8v12"></path><path d="M12 8c-1.5-3-5-3.5-5-1.2C7 8 9 8 12 8z"></path><path d="M12 8c1.5-3 5-3.5 5-1.2C17 8 15 8 12 8z"></path></svg>
+    Regali
   </button>
 </nav>
 
@@ -746,6 +828,27 @@
   var filterMetodo = "";
   var chartType = "uscita";
   var summaryYear = parseInt(currentMonth.slice(0, 4), 10);
+  var giftYear = summaryYear;
+  var giftPersonFilter = "";
+  var giftOccasionFilter = "";
+  // Diventa true se le colonne regalo_* esistono su Supabase (vedi migrazione SQL).
+  var hasGiftColumns = false;
+
+  var GIFT_CATEGORY = "Regali";
+  var GIFT_OCCASIONS = ["Compleanno", "Onomastico", "Natale", "Pasqua", "Capodanno", "Epifania",
+    "San Valentino", "Festa della mamma", "Festa del papà", "Anniversario", "Matrimonio",
+    "Laurea", "Battesimo", "Comunione", "Cresima", "Nascita", "Ringraziamento", "Nessuna occasione"];
+  function isGiftCategory(cat) { return (cat || "").trim().toLowerCase() === GIFT_CATEGORY.toLowerCase(); }
+
+  // Se esiste già una categoria con lo stesso nome a meno di maiuscole/minuscole
+  // (es. "bar" vs "Bar"), usa quella: evita di creare doppioni.
+  function canonicalCategory(name) {
+    var key = name.trim().toLowerCase();
+    var all = state.categories.slice();
+    state.transactions.forEach(function (t) { if (all.indexOf(t.category) < 0) all.push(t.category); });
+    for (var i = 0; i < all.length; i++) if ((all[i] || "").toLowerCase() === key) return all[i];
+    return name.trim();
+  }
   var expandedSummaryMonth = null;
 
   // ---------- Sincronizzazione con Supabase ----------
@@ -757,7 +860,13 @@
   }
 
   function fetchMovimenti() {
-    return sbFetch("/finanze_movimenti?select=id,data,descrizione,categoria,importo,tipo,metodo&order=data.desc")
+    return sbFetch("/finanze_movimenti?select=id,data,descrizione,categoria,importo,tipo,metodo,regalo_a,regalo_cosa,regalo_occasione&order=data.desc")
+      .then(function (rows) { hasGiftColumns = true; return rows; })
+      .catch(function () {
+        // Colonne regalo_* non ancora create (migrazione non eseguita): ripiega senza.
+        hasGiftColumns = false;
+        return sbFetch("/finanze_movimenti?select=id,data,descrizione,categoria,importo,tipo,metodo&order=data.desc");
+      })
       .catch(function () {
         // Colonna "metodo" non ancora presente (migrazione non eseguita su questo progetto): ripiega senza.
         return sbFetch("/finanze_movimenti?select=id,data,descrizione,categoria,importo,tipo&order=data.desc");
@@ -777,7 +886,7 @@
       state.budgets = {};
       categorie.forEach(function (c) { state.budgets[c.nome] = Number(c.budget) || 0; });
       state.transactions = movimenti.map(function (m) {
-        return { id: m.id, date: m.data, desc: m.descrizione, category: m.categoria, amount: Number(m.importo), type: m.tipo, metodo: m.metodo || "" };
+        return rowToTx(m);
       });
       state.initialBalance = impostazioni.length ? Number(impostazioni[0].saldo_iniziale) || 0 : 0;
       state.metodi = metodi.map(function (m) { return m.nome; });
@@ -789,6 +898,13 @@
       showToast("Errore di connessione a Supabase. Riprova con \"Aggiorna\".", true);
       throw err;
     });
+  }
+
+  function rowToTx(m) {
+    return {
+      id: m.id, date: m.data, desc: m.descrizione, category: m.categoria, amount: Number(m.importo), type: m.tipo, metodo: m.metodo || "",
+      giftTo: m.regalo_a || "", giftWhat: m.regalo_cosa || "", giftOccasion: m.regalo_occasione || ""
+    };
   }
 
   function catColor(cat) {
@@ -858,7 +974,113 @@
     renderTrendChart();
     renderYearSummary();
     renderTransactions();
+    renderGifts();
   }
+
+  // ---------- Regali ----------
+  function giftTransactions() {
+    return state.transactions.filter(function (t) { return t.type === "uscita" && isGiftCategory(t.category); });
+  }
+
+  function fillSelect(sel, placeholder, values, current) {
+    sel.innerHTML = '<option value="">' + placeholder + '</option>';
+    values.forEach(function (v) {
+      var opt = document.createElement("option");
+      opt.value = v; opt.textContent = v;
+      sel.appendChild(opt);
+    });
+    sel.value = values.indexOf(current) >= 0 ? current : "";
+    return sel.value;
+  }
+
+  function uniqueSorted(values) {
+    var seen = {}, out = [];
+    values.forEach(function (v) {
+      var key = (v || "").trim().toLowerCase();
+      if (!key || seen[key]) return;
+      seen[key] = true;
+      out.push(v.trim());
+    });
+    return out.sort(function (a, b) { return a.localeCompare(b, "it"); });
+  }
+
+  function renderGiftSuggestions() {
+    var gifts = giftTransactions();
+    var people = uniqueSorted(gifts.map(function (t) { return t.giftTo; }));
+    document.getElementById("giftToList").innerHTML = people.map(function (p) {
+      return '<option value="' + escapeHtml(p) + '"></option>';
+    }).join("");
+    var occasions = uniqueSorted(GIFT_OCCASIONS.concat(gifts.map(function (t) { return t.giftOccasion; })));
+    document.getElementById("giftOccasionList").innerHTML = occasions.map(function (o) {
+      return '<option value="' + escapeHtml(o) + '"></option>';
+    }).join("");
+  }
+
+  function renderGifts() {
+    renderGiftSuggestions();
+    document.getElementById("giftYearLabel").textContent = String(giftYear);
+
+    var warn = document.getElementById("giftWarning");
+    if (!hasGiftColumns) {
+      warn.style.display = "block";
+      warn.textContent = "Per salvare a chi, cosa e l'occasione dei regali serve prima un piccolo aggiornamento del database su Supabase (vedi le istruzioni). Fino ad allora qui compaiono solo data e importo.";
+    } else {
+      warn.style.display = "none";
+    }
+
+    var yearGifts = giftTransactions().filter(function (t) { return t.date.slice(0, 4) === String(giftYear); });
+    giftPersonFilter = fillSelect(document.getElementById("giftPersonFilter"), "Tutte le persone",
+      uniqueSorted(yearGifts.map(function (t) { return t.giftTo; })), giftPersonFilter);
+    giftOccasionFilter = fillSelect(document.getElementById("giftOccasionFilter"), "Tutte le occasioni",
+      uniqueSorted(yearGifts.map(function (t) { return t.giftOccasion; })), giftOccasionFilter);
+
+    var list = yearGifts.filter(function (t) {
+      return (!giftPersonFilter || (t.giftTo || "").trim().toLowerCase() === giftPersonFilter.toLowerCase()) &&
+        (!giftOccasionFilter || (t.giftOccasion || "").trim().toLowerCase() === giftOccasionFilter.toLowerCase());
+    }).sort(function (a, b) { return b.date.localeCompare(a.date); });
+
+    var total = list.reduce(function (s, t) { return s + t.amount; }, 0);
+    var byPerson = {};
+    list.forEach(function (t) {
+      var k = (t.giftTo || "").trim() || "Non indicato";
+      byPerson[k] = (byPerson[k] || 0) + t.amount;
+    });
+    var chips = '<span class="gift-chip">' + list.length + (list.length === 1 ? " regalo" : " regali") + ' · <strong>' + fmtEUR.format(total) + '</strong></span>';
+    if (!giftPersonFilter) {
+      chips += Object.keys(byPerson).sort(function (a, b) { return byPerson[b] - byPerson[a]; }).map(function (p) {
+        return '<span class="gift-chip">' + escapeHtml(p) + ' <strong>' + fmtEUR.format(byPerson[p]) + '</strong></span>';
+      }).join("");
+    }
+    document.getElementById("giftSummary").innerHTML = list.length ? chips : "";
+
+    var tbody = document.getElementById("giftTableBody");
+    document.getElementById("giftEmpty").style.display = list.length ? "none" : "block";
+    tbody.innerHTML = list.map(function (t) {
+      var what = t.giftWhat || t.desc || "—";
+      return '<tr>' +
+        '<td class="tx-date">' + fmtDate(t.date) + '</td>' +
+        '<td>' + escapeHtml(t.giftTo || "—") + '</td>' +
+        '<td>' + escapeHtml(what) + '</td>' +
+        '<td>' + (t.giftOccasion ? '<span class="tx-metodo-pill">' + escapeHtml(t.giftOccasion) + '</span>' : '<span class="tx-metodo-empty">—</span>') + '</td>' +
+        '<td class="tx-amount uscita">−' + fmtEUR.format(t.amount).replace("€", "").trim() + ' €</td>' +
+        '<td class="tx-actions-cell"><button class="tx-edit" data-id="' + t.id + '" title="Modifica regalo">✎</button></td>' +
+      '</tr>';
+    }).join("");
+    tbody.querySelectorAll(".tx-edit").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var id = btn.getAttribute("data-id");
+        var tx = state.transactions.filter(function (t) { return String(t.id) === id; })[0];
+        if (!tx) return;
+        goToPage("movimenti");
+        enterEditMode(tx);
+      });
+    });
+  }
+
+  document.getElementById("prevGiftYear").addEventListener("click", function () { giftYear -= 1; renderGifts(); });
+  document.getElementById("nextGiftYear").addEventListener("click", function () { giftYear += 1; renderGifts(); });
+  document.getElementById("giftPersonFilter").addEventListener("change", function () { giftPersonFilter = this.value; renderGifts(); });
+  document.getElementById("giftOccasionFilter").addEventListener("change", function () { giftOccasionFilter = this.value; renderGifts(); });
 
   // ---------- Riepilogo anno (spesa mese per mese, con dettaglio per categoria) ----------
   function renderYearMonthDetail(ym) {
@@ -1203,6 +1425,15 @@
     wrap.innerHTML = svg + legend;
   }
 
+  function giftSubline(t) {
+    if (!isGiftCategory(t.category)) return "";
+    var parts = [];
+    if (t.giftTo) parts.push("a " + t.giftTo);
+    if (t.giftWhat) parts.push(t.giftWhat);
+    if (t.giftOccasion) parts.push(t.giftOccasion);
+    return parts.length ? '<span class="tx-gift-sub">🎁 ' + escapeHtml(parts.join(" · ")) + '</span>' : "";
+  }
+
   function isFilterActive() { return filterText.trim() !== "" || filterCategory !== "" || filterMetodo !== ""; }
 
   function renderTransactions() {
@@ -1220,7 +1451,8 @@
     if (filtering) {
       var needle = filterText.trim().toLowerCase();
       list = monthTx.filter(function (t) {
-        var matchesText = !needle || (t.desc || "").toLowerCase().indexOf(needle) >= 0;
+        var haystack = [t.desc, t.giftTo, t.giftWhat, t.giftOccasion].join(" ").toLowerCase();
+        var matchesText = !needle || haystack.indexOf(needle) >= 0;
         var matchesCat = !filterCategory || t.category === filterCategory;
         var matchesMetodo = !filterMetodo || t.metodo === filterMetodo;
         return matchesText && matchesCat && matchesMetodo;
@@ -1261,7 +1493,7 @@
     tbody.innerHTML = list.map(function (t) {
       return '<tr>' +
         '<td class="tx-date">' + fmtDate(t.date) + '</td>' +
-        '<td>' + escapeHtml(t.desc || "—") + '</td>' +
+        '<td>' + escapeHtml(t.desc || "—") + giftSubline(t) + '</td>' +
         '<td><span class="tx-cat-pill"><span class="cat-dot" style="background:' + catColor(t.category) + '"></span>' + escapeHtml(t.category) + '</span></td>' +
         '<td>' + (t.metodo ? '<span class="tx-metodo-pill">' + escapeHtml(t.metodo) + '</span>' : '<span class="tx-metodo-empty">—</span>') + '</td>' +
         '<td class="tx-amount ' + t.type + '">' + (t.type === "entrata" ? "+" : "−") + fmtEUR.format(t.amount).replace("€", "").trim() + " €</td>" +
@@ -1291,7 +1523,7 @@
   }
 
   // ---------- Navigazione pagine (sidebar + barra mobile) ----------
-  var PAGE_TITLES = { dashboard: "Ciao Massimo", movimenti: "Movimenti", budget: "Budget" };
+  var PAGE_TITLES = { dashboard: "Ciao Massimo", movimenti: "Movimenti", budget: "Budget", regali: "Regali" };
   function goToPage(page) {
     if (page !== "movimenti" && editingTxId) cancelEdit();
     document.querySelectorAll(".page").forEach(function (el) {
@@ -1363,6 +1595,18 @@
     }
   }
 
+  function updateGiftFields() {
+    var show = currentTxType === "uscita" && isGiftCategory(document.getElementById("txCategory").value);
+    document.getElementById("giftFields").classList.toggle("show", show);
+  }
+  function clearGiftFields() {
+    document.getElementById("giftTo").value = "";
+    document.getElementById("giftWhat").value = "";
+    document.getElementById("giftOccasion").value = "";
+  }
+  document.getElementById("txCategory").addEventListener("input", updateGiftFields);
+  document.getElementById("txCategory").addEventListener("change", updateGiftFields);
+
   // ---------- Modifica di un movimento esistente ----------
   function setTxTypeToggle(type) {
     var toggle = document.getElementById("txTypeToggle");
@@ -1378,9 +1622,13 @@
     document.getElementById("txCategory").value = tx.category || "";
     document.getElementById("txMetodo").value = tx.metodo || "";
     document.getElementById("txAmount").value = tx.amount;
+    document.getElementById("giftTo").value = tx.giftTo || "";
+    document.getElementById("giftWhat").value = tx.giftWhat || "";
+    document.getElementById("giftOccasion").value = tx.giftOccasion || "";
     currentTxType = tx.type;
     setTxTypeToggle(currentTxType);
     updateCategoryHint();
+    updateGiftFields();
     document.getElementById("addTxBtn").textContent = "Salva modifiche";
     document.getElementById("cancelEditBtn").style.display = "inline-flex";
     document.getElementById("txDate").scrollIntoView({ behavior: "smooth", block: "center" });
@@ -1393,9 +1641,11 @@
     document.getElementById("txCategory").value = "";
     document.getElementById("txMetodo").value = "";
     document.getElementById("txAmount").value = "";
+    clearGiftFields();
     currentTxType = "entrata";
     setTxTypeToggle(currentTxType);
     updateCategoryHint();
+    updateGiftFields();
     document.getElementById("addTxBtn").textContent = "Aggiungi";
     document.getElementById("cancelEditBtn").style.display = "none";
   }
@@ -1409,6 +1659,7 @@
     this.querySelectorAll("button").forEach(function (b) { b.classList.remove("active"); });
     btn.classList.add("active");
     updateCategoryHint();
+    updateGiftFields();
   });
 
   document.getElementById("chartTypeToggle").addEventListener("click", function (e) {
@@ -1420,30 +1671,35 @@
     renderChart();
   });
 
+  // Colonne facoltative: se su questo progetto non esistono ancora (migrazione non
+  // eseguita), il salvataggio ritenta senza — il movimento si salva comunque.
+  var OPTIONAL_COLUMNS = [["regalo_a", "regalo_cosa", "regalo_occasione"], ["metodo"]];
+  function withoutColumns(payload, cols) {
+    var out = {};
+    for (var k in payload) if (cols.indexOf(k) < 0) out[k] = payload[k];
+    return out;
+  }
+  function sendWithFallback(send, payload) {
+    return send(payload).catch(function (err) {
+      for (var i = 0; i < OPTIONAL_COLUMNS.length; i++) {
+        var cols = OPTIONAL_COLUMNS[i];
+        var hasAny = cols.some(function (c) { return Object.prototype.hasOwnProperty.call(payload, c); });
+        if (hasAny) return sendWithFallback(send, withoutColumns(payload, cols));
+      }
+      throw err;
+    });
+  }
+
   function insertMovimento(payload) {
-    return sbFetch("/finanze_movimenti", { method: "POST", body: payload, prefer: "return=representation" })
-      .catch(function (err) {
-        // Se la colonna "metodo" non esiste ancora su questo progetto (migrazione non
-        // eseguita), ritenta senza — il movimento si salva comunque, solo senza metodo.
-        if (Object.prototype.hasOwnProperty.call(payload, "metodo")) {
-          var fallback = {};
-          for (var k in payload) if (k !== "metodo") fallback[k] = payload[k];
-          return sbFetch("/finanze_movimenti", { method: "POST", body: fallback, prefer: "return=representation" });
-        }
-        throw err;
-      });
+    return sendWithFallback(function (body) {
+      return sbFetch("/finanze_movimenti", { method: "POST", body: body, prefer: "return=representation" });
+    }, payload);
   }
 
   function updateMovimento(id, payload) {
-    return sbFetch("/finanze_movimenti?id=eq." + encodeURIComponent(id), { method: "PATCH", body: payload, prefer: "return=representation" })
-      .catch(function (err) {
-        if (Object.prototype.hasOwnProperty.call(payload, "metodo")) {
-          var fallback = {};
-          for (var k in payload) if (k !== "metodo") fallback[k] = payload[k];
-          return sbFetch("/finanze_movimenti?id=eq." + encodeURIComponent(id), { method: "PATCH", body: fallback, prefer: "return=representation" });
-        }
-        throw err;
-      });
+    return sendWithFallback(function (body) {
+      return sbFetch("/finanze_movimenti?id=eq." + encodeURIComponent(id), { method: "PATCH", body: body, prefer: "return=representation" });
+    }, payload);
   }
 
   document.getElementById("addTxBtn").addEventListener("click", function () {
@@ -1462,6 +1718,9 @@
     if (!date) { dateEl.focus(); return; }
     if (!amount || amount <= 0) { amountEl.focus(); return; }
     if (!categoria) { catEl.focus(); return; }
+    categoria = canonicalCategory(categoria);
+    catEl.value = categoria;
+    var isGift = currentTxType === "uscita" && isGiftCategory(categoria);
 
     var payload = {
       data: date,
@@ -1471,6 +1730,15 @@
       tipo: currentTxType
     };
     if (metodo) payload.metodo = metodo;
+    // Campi regalo: valorizzati solo per le uscite "Regali"; per gli altri movimenti
+    // vengono azzerati (utile se un movimento viene spostato fuori da "Regali").
+    if (hasGiftColumns) {
+      payload.regalo_a = isGift ? (document.getElementById("giftTo").value.trim() || null) : null;
+      payload.regalo_cosa = isGift ? (document.getElementById("giftWhat").value.trim() || null) : null;
+      payload.regalo_occasione = isGift ? (document.getElementById("giftOccasion").value.trim() || null) : null;
+    } else if (isGift) {
+      showToast("Dettagli regalo non salvati: aggiorna prima il database su Supabase", true);
+    }
 
     // Se è un'uscita con una categoria mai vista prima, la aggiunge automaticamente
     // al budget mensile (per le entrate no: lì la "categoria" è spesso solo una fonte,
@@ -1499,15 +1767,12 @@
       updateMovimento(editId, payload)
         .then(function (rows) {
           var row = (rows && rows[0]) || null;
-          var updated = {
-            id: editId,
-            date: row ? row.data : date,
-            desc: row ? row.descrizione : payload.descrizione,
-            category: row ? row.categoria : categoria,
-            amount: row ? Number(row.importo) : payload.importo,
-            type: row ? row.tipo : currentTxType,
-            metodo: row ? (row.metodo || "") : metodo
-          };
+          var updated = row ? rowToTx(row) : rowToTx({
+            id: editId, data: date, descrizione: payload.descrizione, categoria: categoria,
+            importo: payload.importo, tipo: currentTxType, metodo: metodo,
+            regalo_a: payload.regalo_a, regalo_cosa: payload.regalo_cosa, regalo_occasione: payload.regalo_occasione
+          });
+          updated.id = editId;
           state.transactions = state.transactions.map(function (t) {
             return String(t.id) === String(editId) ? updated : t;
           });
@@ -1525,10 +1790,11 @@
     insertMovimento(payload)
       .then(function (rows) {
         var row = rows[0];
-        state.transactions.push({ id: row.id, date: row.data, desc: row.descrizione, category: row.categoria, amount: Number(row.importo), type: row.tipo, metodo: row.metodo || "" });
+        state.transactions.push(rowToTx(row));
         currentMonth = date.slice(0, 7);
         descEl.value = "";
         amountEl.value = "";
+        clearGiftFields();
         syncNewCategoryAndMetodo();
         renderAll();
         showToast("Movimento aggiunto");
@@ -1541,7 +1807,8 @@
     var input = document.getElementById("newCategoryInput");
     var name = input.value.trim();
     if (!name) return;
-    if (state.categories.indexOf(name) >= 0) { showToast("Categoria già esistente"); return; }
+    var lower = name.toLowerCase();
+    if (state.categories.some(function (c) { return c.toLowerCase() === lower; })) { showToast("Categoria già esistente"); return; }
     var ordine = state.categories.length;
     state.categories.push(name);
     state.budgets[name] = 0;
