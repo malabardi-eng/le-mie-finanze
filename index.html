@@ -332,6 +332,30 @@
     background: var(--warn-soft); color: var(--text); border: 1px solid var(--border);
   }
 
+  /* ---------- Spese di lavoro (visibili solo con categoria "Lavoro") ---------- */
+  .work-fields {
+    display: none; gap: 0.55rem;
+    margin: -0.4rem 0 1.1rem; padding: 0.75rem; border-radius: 10px;
+    background: var(--surface-2); border: 1px dashed var(--border);
+  }
+  .work-fields.show { display: grid; }
+  .work-fields .field input { background: var(--surface); }
+  .work-type-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+  .work-type-chips button {
+    all: unset; cursor: pointer; font-size: 0.76rem; font-weight: 600; color: var(--text-muted);
+    background: var(--surface); border: 1px solid var(--border); border-radius: 99px; padding: 0.3rem 0.7rem;
+  }
+  .work-type-chips button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .work-month-total {
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 1.5rem; font-weight: 700;
+    margin-bottom: 0.2rem;
+  }
+  .work-month-sub { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.9rem; }
+  .work-breakdown { display: flex; flex-direction: column; gap: 0.55rem; }
+  .work-breakdown-row .legend-item { margin-bottom: 0.25rem; }
+  .work-breakdown-row .budget-bar-track { height: 6px; }
+  .work-link-btn { all: unset; cursor: pointer; font-family: var(--font-body); font-size: 0.74rem; font-weight: 600; color: var(--accent); }
+
   /* ---------- Transactions filter ---------- */
   .tx-filter-row {
     display: flex; gap: 0.55rem; margin-bottom: 0.75rem; flex-wrap: wrap;
@@ -531,6 +555,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"></rect><path d="M5 12v8h14v-8"></path><path d="M12 8v12"></path><path d="M12 8c-1.5-3-5-3.5-5-1.2C7 8 9 8 12 8z"></path><path d="M12 8c1.5-3 5-3.5 5-1.2C17 8 15 8 12 8z"></path></svg>
         Regali
       </button>
+      <button type="button" class="nav-btn" data-page="lavoro">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"></rect><path d="M9 7V5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 5v2"></path><path d="M3 12.5h18"></path></svg>
+        Lavoro
+      </button>
     </nav>
     <div class="sidebar-foot"><span class="sync-dot" id="syncDot"></span><span id="syncLabel">Connessione…</span></div>
   </aside>
@@ -607,6 +635,14 @@
 
         <div class="card">
           <h2 class="card-title">
+            <span>Spese di lavoro <span class="hint" id="workDashHint"></span></span>
+            <button type="button" class="work-link-btn" id="workDashLink">Vedi tutte ›</button>
+          </h2>
+          <div id="workDashBody"></div>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title">
             <span>Riepilogo anno</span>
             <div class="month-nav" id="yearNav">
               <button id="prevYear" aria-label="Anno precedente">‹</button>
@@ -679,6 +715,15 @@
               <datalist id="giftOccasionList"></datalist>
             </div>
           </div>
+          <div class="work-fields" id="workFields">
+            <div class="gift-fields-title">💼 Tipo di spesa di lavoro</div>
+            <div class="work-type-chips" id="workTypeChips"></div>
+            <div class="field">
+              <label for="workType">Tipo (scegli sopra o scrivine uno nuovo)</label>
+              <input type="text" id="workType" list="workTypeList" placeholder="Es. Pranzo o cena, Viaggio…" autocomplete="off" />
+              <datalist id="workTypeList"></datalist>
+            </div>
+          </div>
           <div class="tx-filter-row">
             <input type="search" id="txSearch" placeholder="Cerca nella descrizione…" />
             <select id="txCategoryFilter">
@@ -748,6 +793,38 @@
           </div>
         </div>
       </section>
+
+      <section class="page" id="page-lavoro">
+        <div class="page-header">
+          <h2>Lavoro</h2>
+          <p>Tutte le spese di lavoro, divise per tipo. Restano comunque tra le uscite normali.</p>
+        </div>
+        <div class="card">
+          <h2 class="card-title">
+            <span>Spese di lavoro</span>
+            <div class="month-nav">
+              <button id="prevWorkYear" aria-label="Anno precedente">‹</button>
+              <span class="month-label" id="workYearLabel">—</span>
+              <button id="nextWorkYear" aria-label="Anno successivo">›</button>
+            </div>
+          </h2>
+          <div class="gift-warning" id="workWarning" style="display:none;"></div>
+          <div class="tx-filter-row">
+            <select id="workTypeFilter"><option value="">Tutti i tipi</option></select>
+            <select id="workMonthFilter"><option value="">Tutti i mesi</option></select>
+          </div>
+          <div class="gift-summary" id="workSummary"></div>
+          <div class="tx-table-wrap">
+            <table class="tx-table">
+              <thead>
+                <tr><th>Data</th><th>Tipo</th><th>Descrizione</th><th>Metodo</th><th style="text-align:right;">Importo</th><th></th></tr>
+              </thead>
+              <tbody id="workTableBody"></tbody>
+            </table>
+            <div class="tx-empty" id="workEmpty" style="display:none;">Nessuna spesa di lavoro registrata in quest'anno.</div>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
 </div>
@@ -768,6 +845,10 @@
   <button type="button" class="nav-btn" data-page="regali">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"></rect><path d="M5 12v8h14v-8"></path><path d="M12 8v12"></path><path d="M12 8c-1.5-3-5-3.5-5-1.2C7 8 9 8 12 8z"></path><path d="M12 8c1.5-3 5-3.5 5-1.2C17 8 15 8 12 8z"></path></svg>
     Regali
+  </button>
+  <button type="button" class="nav-btn" data-page="lavoro">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"></rect><path d="M9 7V5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 5v2"></path><path d="M3 12.5h18"></path></svg>
+    Lavoro
   </button>
 </nav>
 
@@ -840,6 +921,19 @@
     "Laurea", "Battesimo", "Comunione", "Cresima", "Nascita", "Ringraziamento", "Nessuna occasione"];
   function isGiftCategory(cat) { return (cat || "").trim().toLowerCase() === GIFT_CATEGORY.toLowerCase(); }
 
+  // Spese di lavoro: restano uscite normali (contano in totali e budget), ma hanno
+  // un "tipo" in più e una sezione dedicata (riquadro in Dashboard + pagina Lavoro).
+  var WORK_CATEGORY = "Lavoro";
+  var WORK_TYPES = ["Viaggio", "Albergo", "Pranzo o cena", "Colazione", "Spesa per clienti",
+    "Spesa per ufficio", "Tecnologia", "Varie"];
+  var WORK_TYPE_NONE = "Non indicato";
+  function isWorkCategory(cat) { return (cat || "").trim().toLowerCase() === WORK_CATEGORY.toLowerCase(); }
+  // Diventa true se la colonna lavoro_tipo esiste su Supabase (vedi migrazione_lavoro.sql).
+  var hasWorkColumn = false;
+  var workYear = parseInt(currentMonth.slice(0, 4), 10);
+  var workTypeFilter = "";
+  var workMonthFilter = "";
+
   // Se esiste già una categoria con lo stesso nome a meno di maiuscole/minuscole
   // (es. "bar" vs "Bar"), usa quella: evita di creare doppioni.
   function canonicalCategory(name) {
@@ -859,17 +953,23 @@
     lbl.textContent = label;
   }
 
-  function fetchMovimenti() {
-    return sbFetch("/finanze_movimenti?select=id,data,descrizione,categoria,importo,tipo,metodo,regalo_a,regalo_cosa,regalo_occasione&order=data.desc")
-      .then(function (rows) { hasGiftColumns = true; return rows; })
-      .catch(function () {
-        // Colonne regalo_* non ancora create (migrazione non eseguita): ripiega senza.
-        hasGiftColumns = false;
-        return sbFetch("/finanze_movimenti?select=id,data,descrizione,categoria,importo,tipo,metodo&order=data.desc");
-      })
-      .catch(function () {
-        // Colonna "metodo" non ancora presente (migrazione non eseguita su questo progetto): ripiega senza.
-        return sbFetch("/finanze_movimenti?select=id,data,descrizione,categoria,importo,tipo&order=data.desc");
+  // Prova dalla selezione più completa alla minima: se una colonna facoltativa non
+  // esiste ancora (migrazione non eseguita) ripiega senza, e l'app funziona lo stesso.
+  var MOVIMENTI_SELECTS = [
+    { cols: "metodo,regalo_a,regalo_cosa,regalo_occasione,lavoro_tipo", gift: true, work: true },
+    { cols: "metodo,regalo_a,regalo_cosa,regalo_occasione", gift: true, work: false },
+    { cols: "metodo", gift: false, work: false },
+    { cols: "", gift: false, work: false }
+  ];
+  function fetchMovimenti(i) {
+    i = i || 0;
+    var opt = MOVIMENTI_SELECTS[i];
+    var select = "id,data,descrizione,categoria,importo,tipo" + (opt.cols ? "," + opt.cols : "");
+    return sbFetch("/finanze_movimenti?select=" + select + "&order=data.desc")
+      .then(function (rows) { hasGiftColumns = opt.gift; hasWorkColumn = opt.work; return rows; })
+      .catch(function (err) {
+        if (i + 1 >= MOVIMENTI_SELECTS.length) throw err;
+        return fetchMovimenti(i + 1);
       });
   }
 
@@ -903,7 +1003,8 @@
   function rowToTx(m) {
     return {
       id: m.id, date: m.data, desc: m.descrizione, category: m.categoria, amount: Number(m.importo), type: m.tipo, metodo: m.metodo || "",
-      giftTo: m.regalo_a || "", giftWhat: m.regalo_cosa || "", giftOccasion: m.regalo_occasione || ""
+      giftTo: m.regalo_a || "", giftWhat: m.regalo_cosa || "", giftOccasion: m.regalo_occasione || "",
+      workType: m.lavoro_tipo || ""
     };
   }
 
@@ -975,6 +1076,8 @@
     renderYearSummary();
     renderTransactions();
     renderGifts();
+    renderWorkDashboard();
+    renderWork();
   }
 
   // ---------- Regali ----------
@@ -1081,6 +1184,157 @@
   document.getElementById("nextGiftYear").addEventListener("click", function () { giftYear += 1; renderGifts(); });
   document.getElementById("giftPersonFilter").addEventListener("change", function () { giftPersonFilter = this.value; renderGifts(); });
   document.getElementById("giftOccasionFilter").addEventListener("change", function () { giftOccasionFilter = this.value; renderGifts(); });
+
+  // ---------- Lavoro ----------
+  function workTransactions() {
+    return state.transactions.filter(function (t) { return t.type === "uscita" && isWorkCategory(t.category); });
+  }
+  function workTypeOf(t) { return (t.workType || "").trim() || WORK_TYPE_NONE; }
+  function workTypeColor(type) {
+    var idx = WORK_TYPES.indexOf(type);
+    if (type === WORK_TYPE_NONE) return "var(--text-muted)";
+    return idx >= 0 ? PALETTE[idx % PALETTE.length] : catColor(type);
+  }
+  // Tipi disponibili: gli 8 predefiniti + quelli nuovi scritti a mano in passato.
+  function allWorkTypes() {
+    var extra = uniqueSorted(workTransactions().map(function (t) { return t.workType; }))
+      .filter(function (w) { return !WORK_TYPES.some(function (d) { return d.toLowerCase() === w.toLowerCase(); }); });
+    return WORK_TYPES.concat(extra);
+  }
+  function sumByWorkType(list) {
+    var by = {};
+    list.forEach(function (t) { var k = workTypeOf(t); by[k] = (by[k] || 0) + t.amount; });
+    return by;
+  }
+
+  function renderWorkTypeChips() {
+    var current = document.getElementById("workType").value.trim().toLowerCase();
+    var chips = document.getElementById("workTypeChips");
+    chips.innerHTML = allWorkTypes().map(function (w) {
+      return '<button type="button" data-work-type="' + escapeHtml(w) + '"' +
+        (w.toLowerCase() === current ? ' class="active"' : '') + '>' + escapeHtml(w) + '</button>';
+    }).join("");
+    document.getElementById("workTypeList").innerHTML = allWorkTypes().map(function (w) {
+      return '<option value="' + escapeHtml(w) + '"></option>';
+    }).join("");
+  }
+  document.getElementById("workTypeChips").addEventListener("click", function (e) {
+    var btn = e.target.closest("button[data-work-type]");
+    if (!btn) return;
+    var input = document.getElementById("workType");
+    var val = btn.getAttribute("data-work-type");
+    input.value = input.value.trim().toLowerCase() === val.toLowerCase() ? "" : val;
+    renderWorkTypeChips();
+  });
+  document.getElementById("workType").addEventListener("input", renderWorkTypeChips);
+
+  function renderWorkDashboard() {
+    var body = document.getElementById("workDashBody");
+    document.getElementById("workDashHint").textContent = monthLabel(currentMonth);
+    var list = workTransactions().filter(function (t) { return txMonth(t) === currentMonth; });
+    if (!list.length) {
+      body.innerHTML = '<div class="donut-empty">Nessuna spesa di lavoro questo mese.</div>';
+      return;
+    }
+    var total = list.reduce(function (s, t) { return s + t.amount; }, 0);
+    var budget = state.budgets[canonicalCategory(WORK_CATEGORY)] || 0;
+    var sub = list.length + (list.length === 1 ? " spesa" : " spese");
+    if (budget > 0) sub += " · budget " + fmtEUR.format(budget) + " (" + Math.round(total / budget * 100) + "%)";
+    var by = sumByWorkType(list);
+    var types = Object.keys(by).sort(function (a, b) { return by[b] - by[a]; });
+    var max = by[types[0]];
+    body.innerHTML =
+      '<div class="work-month-total">' + fmtEUR.format(total) + '</div>' +
+      '<div class="work-month-sub">' + escapeHtml(sub) + '</div>' +
+      '<div class="work-breakdown">' + types.map(function (w) {
+        return '<div class="work-breakdown-row">' +
+          '<div class="legend-item"><span class="cat-dot" style="background:' + workTypeColor(w) + '"></span>' +
+            '<span class="legend-name">' + escapeHtml(w) + '</span>' +
+            '<span class="legend-value">' + fmtEUR.format(by[w]) + '</span></div>' +
+          '<div class="budget-bar-track"><div class="budget-bar-fill" style="width:' + (by[w] / max * 100) + '%;background:' + workTypeColor(w) + '"></div></div>' +
+        '</div>';
+      }).join("") + '</div>';
+  }
+  document.getElementById("workDashLink").addEventListener("click", function () {
+    workYear = parseInt(currentMonth.slice(0, 4), 10);
+    workMonthFilter = currentMonth;
+    workTypeFilter = "";
+    goToPage("lavoro");
+    renderWork();
+  });
+
+  function renderWork() {
+    renderWorkTypeChips();
+    document.getElementById("workYearLabel").textContent = String(workYear);
+
+    var warn = document.getElementById("workWarning");
+    if (!hasWorkColumn) {
+      warn.style.display = "block";
+      warn.textContent = "Per salvare il tipo di spesa (Viaggio, Albergo, Pranzo…) serve prima un piccolo aggiornamento del database su Supabase (file migrazione_lavoro.sql). Fino ad allora le spese compaiono tutte come \"" + WORK_TYPE_NONE + "\".";
+    } else {
+      warn.style.display = "none";
+    }
+
+    var yearList = workTransactions().filter(function (t) { return t.date.slice(0, 4) === String(workYear); });
+    var typesInYear = allWorkTypes().filter(function (w) {
+      return yearList.some(function (t) { return workTypeOf(t).toLowerCase() === w.toLowerCase(); });
+    });
+    if (yearList.some(function (t) { return workTypeOf(t) === WORK_TYPE_NONE; })) typesInYear.push(WORK_TYPE_NONE);
+    workTypeFilter = fillSelect(document.getElementById("workTypeFilter"), "Tutti i tipi", typesInYear, workTypeFilter);
+
+    var monthSel = document.getElementById("workMonthFilter");
+    var months = uniqueSorted(yearList.map(function (t) { return txMonth(t); }));
+    monthSel.innerHTML = '<option value="">Tutti i mesi</option>' + months.map(function (ym) {
+      return '<option value="' + ym + '">' + escapeHtml(monthLabel(ym)) + '</option>';
+    }).join("");
+    monthSel.value = months.indexOf(workMonthFilter) >= 0 ? workMonthFilter : "";
+    workMonthFilter = monthSel.value;
+
+    var list = yearList.filter(function (t) {
+      return (!workTypeFilter || workTypeOf(t).toLowerCase() === workTypeFilter.toLowerCase()) &&
+        (!workMonthFilter || txMonth(t) === workMonthFilter);
+    }).sort(function (a, b) { return b.date.localeCompare(a.date); });
+
+    var total = list.reduce(function (s, t) { return s + t.amount; }, 0);
+    var chips = '<span class="gift-chip">' + list.length + (list.length === 1 ? " spesa" : " spese") + ' · <strong>' + fmtEUR.format(total) + '</strong></span>';
+    if (!workTypeFilter) {
+      var by = sumByWorkType(list);
+      chips += Object.keys(by).sort(function (a, b) { return by[b] - by[a]; }).map(function (w) {
+        return '<span class="gift-chip"><span class="cat-dot" style="background:' + workTypeColor(w) + '"></span>' + escapeHtml(w) + ' <strong>' + fmtEUR.format(by[w]) + '</strong></span>';
+      }).join("");
+    }
+    document.getElementById("workSummary").innerHTML = list.length ? chips : "";
+
+    var tbody = document.getElementById("workTableBody");
+    var empty = document.getElementById("workEmpty");
+    empty.style.display = list.length ? "none" : "block";
+    empty.textContent = yearList.length ? "Nessuna spesa corrisponde al filtro." : "Nessuna spesa di lavoro registrata in quest'anno.";
+    tbody.innerHTML = list.map(function (t) {
+      var w = workTypeOf(t);
+      return '<tr>' +
+        '<td class="tx-date">' + fmtDate(t.date) + '</td>' +
+        '<td><span class="tx-cat-pill"><span class="cat-dot" style="background:' + workTypeColor(w) + '"></span>' + escapeHtml(w) + '</span></td>' +
+        '<td>' + escapeHtml(t.desc || "—") + '</td>' +
+        '<td>' + (t.metodo ? '<span class="tx-metodo-pill">' + escapeHtml(t.metodo) + '</span>' : '<span class="tx-metodo-empty">—</span>') + '</td>' +
+        '<td class="tx-amount uscita">−' + fmtEUR.format(t.amount).replace("€", "").trim() + ' €</td>' +
+        '<td class="tx-actions-cell"><button class="tx-edit" data-id="' + t.id + '" title="Modifica spesa">✎</button></td>' +
+      '</tr>';
+    }).join("");
+    tbody.querySelectorAll(".tx-edit").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var id = btn.getAttribute("data-id");
+        var tx = state.transactions.filter(function (t) { return String(t.id) === id; })[0];
+        if (!tx) return;
+        goToPage("movimenti");
+        enterEditMode(tx);
+      });
+    });
+  }
+
+  document.getElementById("prevWorkYear").addEventListener("click", function () { workYear -= 1; workMonthFilter = ""; renderWork(); });
+  document.getElementById("nextWorkYear").addEventListener("click", function () { workYear += 1; workMonthFilter = ""; renderWork(); });
+  document.getElementById("workTypeFilter").addEventListener("change", function () { workTypeFilter = this.value; renderWork(); });
+  document.getElementById("workMonthFilter").addEventListener("change", function () { workMonthFilter = this.value; renderWork(); });
 
   // ---------- Riepilogo anno (spesa mese per mese, con dettaglio per categoria) ----------
   function renderYearMonthDetail(ym) {
@@ -1433,6 +1687,10 @@
     if (t.giftOccasion) parts.push(t.giftOccasion);
     return parts.length ? '<span class="tx-gift-sub">🎁 ' + escapeHtml(parts.join(" · ")) + '</span>' : "";
   }
+  function workSubline(t) {
+    if (t.type !== "uscita" || !isWorkCategory(t.category) || !t.workType) return "";
+    return '<span class="tx-gift-sub">💼 ' + escapeHtml(t.workType) + '</span>';
+  }
 
   function isFilterActive() { return filterText.trim() !== "" || filterCategory !== "" || filterMetodo !== ""; }
 
@@ -1451,7 +1709,7 @@
     if (filtering) {
       var needle = filterText.trim().toLowerCase();
       list = monthTx.filter(function (t) {
-        var haystack = [t.desc, t.giftTo, t.giftWhat, t.giftOccasion].join(" ").toLowerCase();
+        var haystack = [t.desc, t.giftTo, t.giftWhat, t.giftOccasion, t.workType].join(" ").toLowerCase();
         var matchesText = !needle || haystack.indexOf(needle) >= 0;
         var matchesCat = !filterCategory || t.category === filterCategory;
         var matchesMetodo = !filterMetodo || t.metodo === filterMetodo;
@@ -1493,7 +1751,7 @@
     tbody.innerHTML = list.map(function (t) {
       return '<tr>' +
         '<td class="tx-date">' + fmtDate(t.date) + '</td>' +
-        '<td>' + escapeHtml(t.desc || "—") + giftSubline(t) + '</td>' +
+        '<td>' + escapeHtml(t.desc || "—") + giftSubline(t) + workSubline(t) + '</td>' +
         '<td><span class="tx-cat-pill"><span class="cat-dot" style="background:' + catColor(t.category) + '"></span>' + escapeHtml(t.category) + '</span></td>' +
         '<td>' + (t.metodo ? '<span class="tx-metodo-pill">' + escapeHtml(t.metodo) + '</span>' : '<span class="tx-metodo-empty">—</span>') + '</td>' +
         '<td class="tx-amount ' + t.type + '">' + (t.type === "entrata" ? "+" : "−") + fmtEUR.format(t.amount).replace("€", "").trim() + " €</td>" +
@@ -1523,7 +1781,7 @@
   }
 
   // ---------- Navigazione pagine (sidebar + barra mobile) ----------
-  var PAGE_TITLES = { dashboard: "Ciao Massimo", movimenti: "Movimenti", budget: "Budget", regali: "Regali" };
+  var PAGE_TITLES = { dashboard: "Ciao Massimo", movimenti: "Movimenti", budget: "Budget", regali: "Regali", lavoro: "Lavoro" };
   function goToPage(page) {
     if (page !== "movimenti" && editingTxId) cancelEdit();
     document.querySelectorAll(".page").forEach(function (el) {
@@ -1598,11 +1856,15 @@
   function updateGiftFields() {
     var show = currentTxType === "uscita" && isGiftCategory(document.getElementById("txCategory").value);
     document.getElementById("giftFields").classList.toggle("show", show);
+    var showWork = currentTxType === "uscita" && isWorkCategory(document.getElementById("txCategory").value);
+    document.getElementById("workFields").classList.toggle("show", showWork);
   }
   function clearGiftFields() {
     document.getElementById("giftTo").value = "";
     document.getElementById("giftWhat").value = "";
     document.getElementById("giftOccasion").value = "";
+    document.getElementById("workType").value = "";
+    renderWorkTypeChips();
   }
   document.getElementById("txCategory").addEventListener("input", updateGiftFields);
   document.getElementById("txCategory").addEventListener("change", updateGiftFields);
@@ -1625,6 +1887,8 @@
     document.getElementById("giftTo").value = tx.giftTo || "";
     document.getElementById("giftWhat").value = tx.giftWhat || "";
     document.getElementById("giftOccasion").value = tx.giftOccasion || "";
+    document.getElementById("workType").value = tx.workType || "";
+    renderWorkTypeChips();
     currentTxType = tx.type;
     setTxTypeToggle(currentTxType);
     updateCategoryHint();
@@ -1673,7 +1937,7 @@
 
   // Colonne facoltative: se su questo progetto non esistono ancora (migrazione non
   // eseguita), il salvataggio ritenta senza — il movimento si salva comunque.
-  var OPTIONAL_COLUMNS = [["regalo_a", "regalo_cosa", "regalo_occasione"], ["metodo"]];
+  var OPTIONAL_COLUMNS = [["lavoro_tipo"], ["regalo_a", "regalo_cosa", "regalo_occasione"], ["metodo"]];
   function withoutColumns(payload, cols) {
     var out = {};
     for (var k in payload) if (cols.indexOf(k) < 0) out[k] = payload[k];
@@ -1721,6 +1985,7 @@
     categoria = canonicalCategory(categoria);
     catEl.value = categoria;
     var isGift = currentTxType === "uscita" && isGiftCategory(categoria);
+    var isWork = currentTxType === "uscita" && isWorkCategory(categoria);
 
     var payload = {
       data: date,
@@ -1738,6 +2003,15 @@
       payload.regalo_occasione = isGift ? (document.getElementById("giftOccasion").value.trim() || null) : null;
     } else if (isGift) {
       showToast("Dettagli regalo non salvati: aggiorna prima il database su Supabase", true);
+    }
+    // Tipo di spesa di lavoro: stessa logica dei regali (azzerato fuori da "Lavoro").
+    if (hasWorkColumn) {
+      var workType = document.getElementById("workType").value.trim();
+      // Riusa la grafia di un tipo già esistente (es. "viaggio" → "Viaggio").
+      allWorkTypes().forEach(function (w) { if (w.toLowerCase() === workType.toLowerCase()) workType = w; });
+      payload.lavoro_tipo = isWork ? (workType || null) : null;
+    } else if (isWork && document.getElementById("workType").value.trim()) {
+      showToast("Tipo di spesa non salvato: aggiorna prima il database su Supabase", true);
     }
 
     // Se è un'uscita con una categoria mai vista prima, la aggiunge automaticamente
@@ -1770,7 +2044,8 @@
           var updated = row ? rowToTx(row) : rowToTx({
             id: editId, data: date, descrizione: payload.descrizione, categoria: categoria,
             importo: payload.importo, tipo: currentTxType, metodo: metodo,
-            regalo_a: payload.regalo_a, regalo_cosa: payload.regalo_cosa, regalo_occasione: payload.regalo_occasione
+            regalo_a: payload.regalo_a, regalo_cosa: payload.regalo_cosa, regalo_occasione: payload.regalo_occasione,
+            lavoro_tipo: payload.lavoro_tipo
           });
           updated.id = editId;
           state.transactions = state.transactions.map(function (t) {
