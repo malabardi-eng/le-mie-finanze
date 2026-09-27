@@ -542,7 +542,9 @@
   }
 </style>
 </head>
-<body>
+<body><style>[hidden]{display:none!important}#accesso-personale{max-width:440px;margin:12vh auto;padding:28px;background:#fff;color:#17202a;border-radius:18px;font:17px system-ui}#accesso-personale input,#accesso-personale button{box-sizing:border-box;width:100%;padding:12px;margin:10px 0}#accesso-barra{padding:12px;background:#fff2cf;color:#312916;font:15px system-ui}#accesso-barra button{margin-left:16px}</style>
+<section id="accesso-personale"><h1>Il tuo accesso personale</h1><p>Accedi con il tuo account personale. La sessione resta attiva su questo browser.</p><form id="accesso-form"><label>Email<input type="email" autocomplete="username" id="accesso-email" required></label><label>Password<input id="accesso-password" type="password" autocomplete="current-password" required></label><button>Accedi</button></form><p id="accesso-messaggio" role="status">La sessione rimane attiva su questo browser. Non inviare la password nella chat.</p></section>
+<main id="app-protetta" hidden inert><div id="accesso-barra"><span id="accesso-stato"></span><button id="accesso-esci">Esci</button></div>
 
 <div class="loading-screen" id="loadingScreen">
   <div>Caricamento dati…</div>
@@ -867,7 +869,120 @@
 
 <div class="toast" id="toast"></div>
 
-<script>
+
+</main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"></script>
+<script>/* Copia di verifica: nessuna scrittura. Le regole RLS restano necessarie. */
+(function (root) {
+  'use strict';
+  function createAccess(client, config) {
+    let identity = null;
+    async function token() {
+      const result = await client.auth.getSession();
+      const session = result.data && result.data.session;
+      if (result.error || !session || !session.access_token) throw new Error('Accedi per continuare.');
+      // Verify the user at the server, not merely the local session payload.
+      const verified = await client.auth.getUser(session.access_token);
+      const user = verified.data && verified.data.user;
+      if (verified.error || !user || (config.email && user.email !== config.email) ||
+          (config.ownerId && user.id !== config.ownerId)) {
+        identity = null;
+        throw new Error('Accesso personale non verificato.');
+      }
+      identity = user.id;
+      return session.access_token;
+    }
+    return {
+      token,
+      async request(path, opts = {}) {
+        if (!/^\/(finanze_(categorie|impostazioni|metodi|movimenti)|habit_(activities|entries|office_days|diario_days|diario_photos))(\?|$)/.test(path)) throw new Error('Percorso non valido.');
+        const method=(opts.method || 'GET').toUpperCase();
+        if (!['GET','POST','PATCH','DELETE'].includes(method)) throw new Error('Metodo non consentito.');
+        if (method !== 'GET' && !config.allowMutations) {
+          throw new Error('Versione di verifica: il salvataggio non è ancora attivo.');
+        }
+        let bearer;
+        try { bearer = await token(); } catch (error) { if(config.onAuthFailure) config.onAuthFailure(); throw error; }
+        const headers={ apikey: config.key, Authorization: 'Bearer ' + bearer, 'Content-Type':'application/json' };
+        if(opts.prefer) headers.Prefer=opts.prefer;
+        const res = await config.fetch(config.url + '/rest/v1' + path, {
+          method, headers, body:opts.body===undefined?undefined:JSON.stringify(opts.body)
+        });
+        if (!res.ok) {
+          if(res.status===401 && config.onAuthFailure) config.onAuthFailure();
+          throw new Error('Richiesta non riuscita (' + res.status + '). Verifica i dati prima di riprovare.');
+        }
+        if(res.status===204) return null;
+        const body=await res.text();return body?JSON.parse(body):null;
+      },
+      identity: () => identity
+    };
+  }
+  if (typeof module !== 'undefined' && module.exports) module.exports = { createAccess };
+  root.createPersonalAccess = createAccess;
+})(typeof window === 'undefined' ? globalThis : window);
+</script><script>(function () {
+  'use strict';
+  window.startPersonalAccess = async function (url, key) {
+    if (!window.supabase) throw new Error('Connessione alla libreria di accesso non riuscita. Ricarica la pagina.');
+    const client = window.supabase.createClient(url, key, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false,
+        storageKey: 'second-brain-verifica-accesso-v1' }
+    });
+    const access = createPersonalAccess(client, {
+      url, key, allowMutations: true, onAuthFailure: () => { if(admitted) { hideData(); window.location.reload(); } }, ownerId: 'c31718b9-1c82-48bc-93fb-5a313cd5dd6c', fetch: window.fetch.bind(window)
+    });
+    const app = document.getElementById('app-protetta');
+    const panel = document.getElementById('accesso-personale');
+    const message = document.getElementById('accesso-messaggio');
+    const form = document.getElementById('accesso-form');
+    let admitted = false;
+    function hideData() { app.hidden = true; app.inert = true; panel.hidden = false; }
+    hideData();
+    client.auth.onAuthStateChange(function (event) {
+      // No async auth calls here: avoid the SDK auth callback lock.
+      if (event === 'SIGNED_OUT') {
+        hideData();
+        if (admitted) window.location.reload();
+      }
+    });
+    document.getElementById('accesso-esci').onclick = async function () {
+      hideData();
+      await client.auth.signOut({ scope: 'local' });
+      window.location.reload();
+    };
+    try { await access.token(); }
+    catch (_) {
+      await new Promise(resolve => {
+        form.onsubmit = async function (event) {
+          event.preventDefault();
+          const button = form.querySelector('button');
+          const password = document.getElementById('accesso-password');
+          button.disabled = true;
+          message.textContent = 'Verifico il tuo accesso…';
+          try {
+            const result = await client.auth.signInWithPassword({
+              email: document.getElementById('accesso-email').value.trim(), password: password.value
+            });
+            password.value = '';
+            if (result.error) throw result.error;
+            await access.token();
+            resolve();
+          } catch (_) {
+            password.value = '';
+            message.textContent = 'Accesso non riuscito. Controlla la password e che il tuo account sia stato attivato.';
+          } finally { button.disabled = false; }
+        };
+      });
+    }
+    admitted = true;
+    panel.hidden = true; app.hidden = false; app.inert = false;
+    document.getElementById('accesso-stato').textContent = 'Accesso personale verificato';
+    return access;
+  };
+})();
+</script><script>(async function(){
+const personalAccess = await startPersonalAccess("https://dlihwgoddmdbeedqgkww.supabase.co","sb_publishable_HMjSVRl0CMmlpCpbDTkeZQ_hXtA_-DN");
+
 (function () {
   "use strict";
 
@@ -876,33 +991,7 @@
   var SUPABASE_KEY = "sb_publishable_HMjSVRl0CMmlpCpbDTkeZQ_hXtA_-DN";
   var REST = SUPABASE_URL + "/rest/v1";
 
-  function sbHeaders(extra) {
-    var h = {
-      "apikey": SUPABASE_KEY,
-      "Authorization": "Bearer " + SUPABASE_KEY,
-      "Content-Type": "application/json"
-    };
-    if (extra) for (var k in extra) h[k] = extra[k];
-    return h;
-  }
-
-  function sbFetch(path, opts) {
-    opts = opts || {};
-    return fetch(REST + path, {
-      method: opts.method || "GET",
-      headers: sbHeaders(opts.prefer ? { "Prefer": opts.prefer } : null),
-      body: opts.body ? JSON.stringify(opts.body) : undefined
-    }).then(function (res) {
-      if (!res.ok) {
-        return res.text().then(function (t) {
-          throw new Error("Supabase " + res.status + ": " + t);
-        });
-      }
-      if (res.status === 204) return null;
-      return res.json();
-    });
-  }
-
+function sbFetch(path, opts) { return personalAccess.request(path, opts); }
   var PALETTE = ["#B98A46","#4F86A0","#8B76B8","#4C8A66","#BE6B7C","#6E9A4C","#9A7A50","#4C7A9A","#A2648F","#7A9A4C"];
   var MONTH_NAMES = ["gennaio","febbraio","marzo","aprile","maggio","giugno","luglio","agosto","settembre","ottobre","novembre","dicembre"];
 
@@ -974,16 +1063,13 @@
     { cols: "metodo", gift: false, work: false },
     { cols: "", gift: false, work: false }
   ];
-  function fetchMovimenti(i) {
-    i = i || 0;
-    var opt = MOVIMENTI_SELECTS[i];
-    var select = "id,data,descrizione,categoria,importo,tipo" + (opt.cols ? "," + opt.cols : "");
-    return sbFetch("/finanze_movimenti?select=" + select + "&order=data.desc")
-      .then(function (rows) { hasGiftColumns = opt.gift; hasWorkColumn = opt.work; return rows; })
-      .catch(function (err) {
-        if (i + 1 >= MOVIMENTI_SELECTS.length) throw err;
-        return fetchMovimenti(i + 1);
-      });
+  async function fetchMovimenti() {
+    hasGiftColumns=true; hasWorkColumn=true;
+    const result=[];
+    for(let offset=0;;offset+=500) {
+      const rows=await sbFetch('/finanze_movimenti?select=*&order=data.desc,id&limit=500&offset='+offset);
+      result.push(...rows); if(rows.length<500)return result;
+    }
   }
 
   function loadAll() {
@@ -1956,16 +2042,7 @@
     for (var k in payload) if (cols.indexOf(k) < 0) out[k] = payload[k];
     return out;
   }
-  function sendWithFallback(send, payload) {
-    return send(payload).catch(function (err) {
-      for (var i = 0; i < OPTIONAL_COLUMNS.length; i++) {
-        var cols = OPTIONAL_COLUMNS[i];
-        var hasAny = cols.some(function (c) { return Object.prototype.hasOwnProperty.call(payload, c); });
-        if (hasAny) return sendWithFallback(send, withoutColumns(payload, cols));
-      }
-      throw err;
-    });
-  }
+  function sendWithFallback(send,payload) { return send(payload); }
 
   function insertMovimento(payload) {
     return sendWithFallback(function (body) {
@@ -2208,6 +2285,6 @@
     showToast("Impossibile caricare i dati. Controlla la connessione e premi \"Aggiorna\".", true);
   });
 })();
-</script>
-</body>
+
+})().catch(function(){document.getElementById("accesso-messaggio").textContent="Verifica non completata. Ricarica la pagina o chiedi assistenza.";});</script></body>
 </html>
