@@ -346,14 +346,29 @@
     background: var(--surface); border: 1px solid var(--border); border-radius: 99px; padding: 0.3rem 0.7rem;
   }
   .work-type-chips button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .work-month-total {
-    font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 1.5rem; font-weight: 700;
-    margin-bottom: 0.2rem;
-  }
   .work-month-sub { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.9rem; }
   .work-breakdown { display: flex; flex-direction: column; gap: 0.55rem; }
   .work-breakdown-row .legend-item { margin-bottom: 0.25rem; }
   .work-breakdown-row .budget-bar-track { height: 6px; }
+  .work-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.55rem; margin-bottom: 1rem; }
+  .work-stat { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 0.6rem 0.7rem; min-width: 0; }
+  .work-stat-label { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600; }
+  .work-stat-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 1.1rem; font-weight: 700; margin-top: 0.15rem; overflow-wrap: break-word; }
+  .work-stat-value.good { color: var(--good); }
+  .work-stat-value.warn { color: var(--warn); }
+  @media (max-width: 420px) { .work-stat-value { font-size: 0.95rem; } }
+  .work-months .year-row { display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, auto); gap: 0.4rem 0.9rem; align-items: baseline; }
+  .work-months .year-row span:not(.year-row-month) { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; font-size: 0.82rem; }
+  .work-months .work-months-head span { font-family: var(--font-body) !important; font-size: 0.66rem !important; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600; }
+  .work-months .year-row.active { background: var(--accent-soft); }
+  @media (max-width: 480px) {
+    .work-months .year-row { gap: 0.3rem 0.5rem; }
+    .work-months .year-row span:not(.year-row-month) { font-size: 0.72rem; }
+    .work-months .year-row-month { font-size: 0.8rem; }
+  }
+  .work-reimb-btn { all: unset; cursor: pointer; font-size: 0.72rem; font-weight: 600; color: var(--good); border: 1px solid var(--border); border-radius: 99px; padding: 0.15rem 0.55rem; margin-right: 0.3rem; white-space: nowrap; }
+  .work-reimb-btn:hover { background: var(--surface-2); }
+  .work-reimb-btn.undo { color: var(--text-muted); }
   /* ---------- Suggerimenti (sostituiscono il menu dei datalist su computer: Safari per Mac non lo mostra) ---------- */
   .suggest-host { position: relative; }
   .suggest-box {
@@ -812,11 +827,11 @@
       <section class="page" id="page-lavoro">
         <div class="page-header">
           <h2>Lavoro</h2>
-          <p>Tutte le spese di lavoro, divise per tipo. Restano comunque tra le uscite normali.</p>
+          <p>Tutte le spese di lavoro: quelle ancora da rimborsare e, a parte, quelle già rimborsate. Restano comunque tra le uscite normali.</p>
         </div>
         <div class="card">
           <h2 class="card-title">
-            <span>Spese di lavoro</span>
+            <span>Riepilogo</span>
             <div class="month-nav">
               <button id="prevWorkYear" aria-label="Anno precedente">‹</button>
               <span class="month-label" id="workYearLabel">—</span>
@@ -828,6 +843,12 @@
             <select id="workTypeFilter"><option value="">Tutti i tipi</option></select>
             <select id="workMonthFilter"><option value="">Tutti i mesi</option></select>
           </div>
+          <div class="work-stats" id="workStats"></div>
+          <div class="work-months" id="workMonths"></div>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title"><span>Da rimborsare</span></h2>
           <div class="gift-summary" id="workSummary"></div>
           <div class="tx-table-wrap">
             <table class="tx-table">
@@ -837,6 +858,20 @@
               <tbody id="workTableBody"></tbody>
             </table>
             <div class="tx-empty" id="workEmpty" style="display:none;">Nessuna spesa di lavoro registrata in quest'anno.</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title"><span>Spese rimborsate</span></h2>
+          <div class="gift-summary" id="workReimbSummary"></div>
+          <div class="tx-table-wrap">
+            <table class="tx-table">
+              <thead>
+                <tr><th>Data</th><th>Tipo</th><th>Descrizione</th><th>Rimborsata il</th><th style="text-align:right;">Importo</th><th></th></tr>
+              </thead>
+              <tbody id="workReimbTableBody"></tbody>
+            </table>
+            <div class="tx-empty" id="workReimbEmpty" style="display:none;">Nessuna spesa rimborsata.</div>
           </div>
         </div>
       </section>
@@ -992,6 +1027,7 @@ const personalAccess = await startPersonalAccess("https://dlihwgoddmdbeedqgkww.s
   var REST = SUPABASE_URL + "/rest/v1";
 
 function sbFetch(path, opts) { return personalAccess.request(path, opts); }
+
   var PALETTE = ["#B98A46","#4F86A0","#8B76B8","#4C8A66","#BE6B7C","#6E9A4C","#9A7A50","#4C7A9A","#A2648F","#7A9A4C"];
   var MONTH_NAMES = ["gennaio","febbraio","marzo","aprile","maggio","giugno","luglio","agosto","settembre","ottobre","novembre","dicembre"];
 
@@ -1032,6 +1068,8 @@ function sbFetch(path, opts) { return personalAccess.request(path, opts); }
   function isWorkCategory(cat) { return (cat || "").trim().toLowerCase() === WORK_CATEGORY.toLowerCase(); }
   // Diventa true se la colonna lavoro_tipo esiste su Supabase (vedi migrazione_lavoro.sql).
   var hasWorkColumn = false;
+  // Diventa true se la colonna lavoro_rimborsato esiste su Supabase (vedi migrazione_rimborsi.sql).
+  var hasReimbColumn = false;
   var workYear = parseInt(currentMonth.slice(0, 4), 10);
   var workTypeFilter = "";
   var workMonthFilter = "";
@@ -1058,6 +1096,7 @@ function sbFetch(path, opts) { return personalAccess.request(path, opts); }
   // Prova dalla selezione più completa alla minima: se una colonna facoltativa non
   // esiste ancora (migrazione non eseguita) ripiega senza, e l'app funziona lo stesso.
   var MOVIMENTI_SELECTS = [
+    { cols: "metodo,regalo_a,regalo_cosa,regalo_occasione,lavoro_tipo,lavoro_rimborsato", gift: true, work: true, reimb: true },
     { cols: "metodo,regalo_a,regalo_cosa,regalo_occasione,lavoro_tipo", gift: true, work: true },
     { cols: "metodo,regalo_a,regalo_cosa,regalo_occasione", gift: true, work: false },
     { cols: "metodo", gift: false, work: false },
@@ -1068,6 +1107,8 @@ function sbFetch(path, opts) { return personalAccess.request(path, opts); }
     const result=[];
     for(let offset=0;;offset+=500) {
       const rows=await sbFetch('/finanze_movimenti?select=*&order=data.desc,id&limit=500&offset='+offset);
+      // La colonna dei rimborsi c'è solo dopo migrazione_rimborsi.sql.
+      if(offset===0) hasReimbColumn=rows.length>0 && Object.prototype.hasOwnProperty.call(rows[0],'lavoro_rimborsato');
       result.push(...rows); if(rows.length<500)return result;
     }
   }
@@ -1103,7 +1144,7 @@ function sbFetch(path, opts) { return personalAccess.request(path, opts); }
     return {
       id: m.id, date: m.data, desc: m.descrizione, category: m.categoria, amount: Number(m.importo), type: m.tipo, metodo: m.metodo || "",
       giftTo: m.regalo_a || "", giftWhat: m.regalo_cosa || "", giftOccasion: m.regalo_occasione || "",
-      workType: m.lavoro_tipo || ""
+      workType: m.lavoro_tipo || "", reimbursedOn: m.lavoro_rimborsato || ""
     };
   }
 
@@ -1327,6 +1368,22 @@ function sbFetch(path, opts) { return personalAccess.request(path, opts); }
   });
   document.getElementById("workType").addEventListener("input", renderWorkTypeChips);
 
+  function isReimbursed(t) { return !!t.reimbursedOn; }
+  function sumAmounts(list) { return list.reduce(function (s, t) { return s + t.amount; }, 0); }
+  // Totale speso, parte rimborsata e differenza (quanto resta a carico) di un elenco di spese.
+  function workTotals(list) {
+    var total = sumAmounts(list);
+    var reimb = sumAmounts(list.filter(isReimbursed));
+    return { total: total, reimb: reimb, diff: total - reimb };
+  }
+  function workStatsHtml(tot) {
+    function tile(label, value, cls) {
+      return '<div class="work-stat"><div class="work-stat-label">' + label + '</div>' +
+        '<div class="work-stat-value' + (cls ? " " + cls : "") + '">' + fmtEUR.format(value) + '</div></div>';
+    }
+    return tile("Speso", tot.total) + tile("Rimborsato", tot.reimb, "good") + tile("Differenza", tot.diff, "warn");
+  }
+
   function renderWorkDashboard() {
     var body = document.getElementById("workDashBody");
     document.getElementById("workDashHint").textContent = monthLabel(currentMonth);
@@ -1335,15 +1392,17 @@ function sbFetch(path, opts) { return personalAccess.request(path, opts); }
       body.innerHTML = '<div class="donut-empty">Nessuna spesa di lavoro questo mese.</div>';
       return;
     }
-    var total = list.reduce(function (s, t) { return s + t.amount; }, 0);
+    var tot = workTotals(list);
     var budget = state.budgets[canonicalCategory(WORK_CATEGORY)] || 0;
-    var sub = list.length + (list.length === 1 ? " spesa" : " spese");
-    if (budget > 0) sub += " · budget " + fmtEUR.format(budget) + " (" + Math.round(total / budget * 100) + "%)";
+    var pending = list.filter(function (t) { return !isReimbursed(t); }).length;
+    var sub = list.length + (list.length === 1 ? " spesa" : " spese") +
+      (pending ? " · " + pending + " da rimborsare" : " · tutte rimborsate");
+    if (budget > 0) sub += " · budget " + fmtEUR.format(budget) + " (" + Math.round(tot.total / budget * 100) + "%)";
     var by = sumByWorkType(list);
     var types = Object.keys(by).sort(function (a, b) { return by[b] - by[a]; });
     var max = by[types[0]];
     body.innerHTML =
-      '<div class="work-month-total">' + fmtEUR.format(total) + '</div>' +
+      '<div class="work-stats">' + workStatsHtml(tot) + '</div>' +
       '<div class="work-month-sub">' + escapeHtml(sub) + '</div>' +
       '<div class="work-breakdown">' + types.map(function (w) {
         return '<div class="work-breakdown-row">' +
@@ -1362,6 +1421,18 @@ function sbFetch(path, opts) { return personalAccess.request(path, opts); }
     renderWork();
   });
 
+  function workRowHtml(t, lastCell, actionBtn) {
+    var w = workTypeOf(t);
+    return '<tr>' +
+      '<td class="tx-date">' + fmtDate(t.date) + '</td>' +
+      '<td><span class="tx-cat-pill"><span class="cat-dot" style="background:' + workTypeColor(w) + '"></span>' + escapeHtml(w) + '</span></td>' +
+      '<td>' + escapeHtml(t.desc || "—") + '</td>' +
+      '<td>' + lastCell + '</td>' +
+      '<td class="tx-amount uscita">−' + fmtEUR.format(t.amount).replace("€", "").trim() + ' €</td>' +
+      '<td class="tx-actions-cell">' + actionBtn + '<button class="tx-edit" data-id="' + t.id + '" title="Modifica spesa">✎</button></td>' +
+    '</tr>';
+  }
+
   function renderWork() {
     renderWorkTypeChips();
     document.getElementById("workYearLabel").textContent = String(workYear);
@@ -1369,7 +1440,10 @@ function sbFetch(path, opts) { return personalAccess.request(path, opts); }
     var warn = document.getElementById("workWarning");
     if (!hasWorkColumn) {
       warn.style.display = "block";
-      warn.textContent = "Per salvare il tipo di spesa (Viaggio, Albergo, Pranzo…) serve prima un piccolo aggiornamento del database su Supabase (file migrazione_lavoro.sql). Fino ad allora le spese compaiono tutte come \"" + WORK_TYPE_NONE + "\".";
+      warn.textContent = "Per salvare il tipo di spesa (Viaggio, Albergo, Pranzo…) e i rimborsi serve prima un piccolo aggiornamento del database su Supabase (file migrazione_lavoro.sql e poi migrazione_rimborsi.sql). Fino ad allora le spese compaiono tutte come \"" + WORK_TYPE_NONE + "\" e non si possono segnare come rimborsate.";
+    } else if (!hasReimbColumn) {
+      warn.style.display = "block";
+      warn.textContent = "Per segnare le spese come rimborsate serve prima un piccolo aggiornamento del database su Supabase (file migrazione_rimborsi.sql).";
     } else {
       warn.style.display = "none";
     }
@@ -1389,51 +1463,119 @@ function sbFetch(path, opts) { return personalAccess.request(path, opts); }
     monthSel.value = months.indexOf(workMonthFilter) >= 0 ? workMonthFilter : "";
     workMonthFilter = monthSel.value;
 
-    var list = yearList.filter(function (t) {
-      return (!workTypeFilter || workTypeOf(t).toLowerCase() === workTypeFilter.toLowerCase()) &&
-        (!workMonthFilter || txMonth(t) === workMonthFilter);
-    }).sort(function (a, b) { return b.date.localeCompare(a.date); });
+    var typeList = yearList.filter(function (t) {
+      return !workTypeFilter || workTypeOf(t).toLowerCase() === workTypeFilter.toLowerCase();
+    });
+    var list = typeList.filter(function (t) { return !workMonthFilter || txMonth(t) === workMonthFilter; })
+      .sort(function (a, b) { return b.date.localeCompare(a.date); });
 
-    var total = list.reduce(function (s, t) { return s + t.amount; }, 0);
-    var chips = '<span class="gift-chip">' + list.length + (list.length === 1 ? " spesa" : " spese") + ' · <strong>' + fmtEUR.format(total) + '</strong></span>';
+    // Riepilogo: totali del periodo scelto + tabella mese per mese dell'anno.
+    document.getElementById("workStats").innerHTML = workStatsHtml(workTotals(list));
+    var monthsBox = document.getElementById("workMonths");
+    var typeMonths = uniqueSorted(typeList.map(function (t) { return txMonth(t); }));
+    if (!typeMonths.length) {
+      monthsBox.innerHTML = "";
+    } else {
+      var rowHtml = function (label, tot, cls, ym) {
+        return '<div class="year-row' + (cls ? " " + cls : "") + '"' + (ym ? ' data-ym="' + ym + '"' : "") + '>' +
+          '<span class="year-row-month">' + label + '</span>' +
+          '<span>' + fmtEUR.format(tot.total) + '</span>' +
+          '<span style="color:var(--good)">' + fmtEUR.format(tot.reimb) + '</span>' +
+          '<span style="color:var(--warn)">' + fmtEUR.format(tot.diff) + '</span></div>';
+      };
+      monthsBox.innerHTML =
+        '<div class="year-row work-months-head"><span class="year-row-month">Mese</span><span>Speso</span><span>Rimborsato</span><span>Differenza</span></div>' +
+        typeMonths.map(function (ym) {
+          var tot = workTotals(typeList.filter(function (t) { return txMonth(t) === ym; }));
+          return rowHtml(escapeHtml(MONTH_NAMES[parseInt(ym.slice(5), 10) - 1]), tot, "has-data" + (ym === workMonthFilter ? " active" : ""), ym);
+        }).join("") +
+        rowHtml("Totale " + workYear, workTotals(typeList), "year-total-row");
+    }
+
+    // Da rimborsare
+    var pending = list.filter(function (t) { return !isReimbursed(t); });
+    var pendingTotal = sumAmounts(pending);
+    var chips = '<span class="gift-chip">' + pending.length + (pending.length === 1 ? " spesa" : " spese") + ' · <strong>' + fmtEUR.format(pendingTotal) + '</strong></span>';
     if (!workTypeFilter) {
-      var by = sumByWorkType(list);
+      var by = sumByWorkType(pending);
       chips += Object.keys(by).sort(function (a, b) { return by[b] - by[a]; }).map(function (w) {
         return '<span class="gift-chip"><span class="cat-dot" style="background:' + workTypeColor(w) + '"></span>' + escapeHtml(w) + ' <strong>' + fmtEUR.format(by[w]) + '</strong></span>';
       }).join("");
     }
-    document.getElementById("workSummary").innerHTML = list.length ? chips : "";
+    document.getElementById("workSummary").innerHTML = pending.length ? chips : "";
 
-    var tbody = document.getElementById("workTableBody");
     var empty = document.getElementById("workEmpty");
-    empty.style.display = list.length ? "none" : "block";
-    empty.textContent = yearList.length ? "Nessuna spesa corrisponde al filtro." : "Nessuna spesa di lavoro registrata in quest'anno.";
-    tbody.innerHTML = list.map(function (t) {
-      var w = workTypeOf(t);
-      return '<tr>' +
-        '<td class="tx-date">' + fmtDate(t.date) + '</td>' +
-        '<td><span class="tx-cat-pill"><span class="cat-dot" style="background:' + workTypeColor(w) + '"></span>' + escapeHtml(w) + '</span></td>' +
-        '<td>' + escapeHtml(t.desc || "—") + '</td>' +
-        '<td>' + (t.metodo ? '<span class="tx-metodo-pill">' + escapeHtml(t.metodo) + '</span>' : '<span class="tx-metodo-empty">—</span>') + '</td>' +
-        '<td class="tx-amount uscita">−' + fmtEUR.format(t.amount).replace("€", "").trim() + ' €</td>' +
-        '<td class="tx-actions-cell"><button class="tx-edit" data-id="' + t.id + '" title="Modifica spesa">✎</button></td>' +
-      '</tr>';
+    empty.style.display = pending.length ? "none" : "block";
+    empty.textContent = !yearList.length ? "Nessuna spesa di lavoro registrata in quest'anno."
+      : list.length ? "Nessuna spesa da rimborsare: sono tutte rimborsate."
+      : "Nessuna spesa corrisponde al filtro.";
+    document.getElementById("workTableBody").innerHTML = pending.map(function (t) {
+      var metodo = t.metodo ? '<span class="tx-metodo-pill">' + escapeHtml(t.metodo) + '</span>' : '<span class="tx-metodo-empty">—</span>';
+      var btn = hasReimbColumn ? '<button class="work-reimb-btn" data-reimb="' + t.id + '" title="Segna come rimborsata">✓ Rimborsata</button>' : "";
+      return workRowHtml(t, metodo, btn);
     }).join("");
-    tbody.querySelectorAll(".tx-edit").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        var id = btn.getAttribute("data-id");
-        var tx = state.transactions.filter(function (t) { return String(t.id) === id; })[0];
-        if (!tx) return;
-        goToPage("movimenti");
-        enterEditMode(tx);
-      });
-    });
+
+    // Spese rimborsate
+    var done = list.filter(isReimbursed);
+    document.getElementById("workReimbSummary").innerHTML = done.length
+      ? '<span class="gift-chip">' + done.length + (done.length === 1 ? " spesa" : " spese") + ' · <strong>' + fmtEUR.format(sumAmounts(done)) + '</strong></span>'
+      : "";
+    var reimbEmpty = document.getElementById("workReimbEmpty");
+    reimbEmpty.style.display = done.length ? "none" : "block";
+    reimbEmpty.textContent = list.length ? "Nessuna spesa rimborsata." : "Nessuna spesa corrisponde al filtro.";
+    document.getElementById("workReimbTableBody").innerHTML = done.map(function (t) {
+      var btn = '<button class="work-reimb-btn undo" data-unreimb="' + t.id + '" title="Rimetti tra le spese da rimborsare">↺ Annulla</button>';
+      return workRowHtml(t, fmtDate(t.reimbursedOn), btn);
+    }).join("");
   }
+
+  function setReimbursed(id, value) {
+    var tx = state.transactions.filter(function (t) { return String(t.id) === String(id); })[0];
+    if (!tx) return;
+    var previous = tx.reimbursedOn;
+    tx.reimbursedOn = value || "";
+    renderWork();
+    renderWorkDashboard();
+    sbFetch("/finanze_movimenti?id=eq." + encodeURIComponent(id), { method: "PATCH", body: { lavoro_rimborsato: value } })
+      .then(function () { showToast(value ? "Spesa segnata come rimborsata" : "Spesa rimessa tra quelle da rimborsare"); })
+      .catch(function () {
+        tx.reimbursedOn = previous;
+        renderWork();
+        renderWorkDashboard();
+        showToast("Errore nel salvare il rimborso", true);
+      });
+  }
+  function todayISO() {
+    var d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  ["workTableBody", "workReimbTableBody"].forEach(function (bodyId) {
+    document.getElementById(bodyId).addEventListener("click", function (e) {
+      var reimb = e.target.closest("[data-reimb]");
+      if (reimb) { setReimbursed(reimb.getAttribute("data-reimb"), todayISO()); return; }
+      var unreimb = e.target.closest("[data-unreimb]");
+      if (unreimb) { setReimbursed(unreimb.getAttribute("data-unreimb"), null); return; }
+      var edit = e.target.closest(".tx-edit");
+      if (!edit) return;
+      var id = edit.getAttribute("data-id");
+      var tx = state.transactions.filter(function (t) { return String(t.id) === id; })[0];
+      if (!tx) return;
+      goToPage("movimenti");
+      enterEditMode(tx);
+    });
+  });
+  document.getElementById("workMonths").addEventListener("click", function (e) {
+    var row = e.target.closest("[data-ym]");
+    if (!row) return;
+    var ym = row.getAttribute("data-ym");
+    workMonthFilter = workMonthFilter === ym ? "" : ym;
+    renderWork();
+  });
 
   document.getElementById("prevWorkYear").addEventListener("click", function () { workYear -= 1; workMonthFilter = ""; renderWork(); });
   document.getElementById("nextWorkYear").addEventListener("click", function () { workYear += 1; workMonthFilter = ""; renderWork(); });
   document.getElementById("workTypeFilter").addEventListener("change", function () { workTypeFilter = this.value; renderWork(); });
-  document.getElementById("workMonthFilter").addEventListener("change", function () { workMonthFilter = this.value; renderWork(); });
+document.getElementById("workMonthFilter").addEventListener("change", function () { workMonthFilter = this.value; renderWork(); });
 
   // ---------- Riepilogo anno (spesa mese per mese, con dettaglio per categoria) ----------
   function renderYearMonthDetail(ym) {
@@ -2036,13 +2178,22 @@ function sbFetch(path, opts) { return personalAccess.request(path, opts); }
 
   // Colonne facoltative: se su questo progetto non esistono ancora (migrazione non
   // eseguita), il salvataggio ritenta senza — il movimento si salva comunque.
-  var OPTIONAL_COLUMNS = [["lavoro_tipo"], ["regalo_a", "regalo_cosa", "regalo_occasione"], ["metodo"]];
+  var OPTIONAL_COLUMNS = [["lavoro_rimborsato"], ["lavoro_tipo"], ["regalo_a", "regalo_cosa", "regalo_occasione"], ["metodo"]];
   function withoutColumns(payload, cols) {
     var out = {};
     for (var k in payload) if (cols.indexOf(k) < 0) out[k] = payload[k];
     return out;
   }
-  function sendWithFallback(send,payload) { return send(payload); }
+  function sendWithFallback(send, payload) {
+    return send(payload).catch(function (err) {
+      for (var i = 0; i < OPTIONAL_COLUMNS.length; i++) {
+        var cols = OPTIONAL_COLUMNS[i];
+        var hasAny = cols.some(function (c) { return Object.prototype.hasOwnProperty.call(payload, c); });
+        if (hasAny) return sendWithFallback(send, withoutColumns(payload, cols));
+      }
+      throw err;
+    });
+  }
 
   function insertMovimento(payload) {
     return sendWithFallback(function (body) {
@@ -2103,6 +2254,9 @@ function sbFetch(path, opts) { return personalAccess.request(path, opts); }
     } else if (isWork && document.getElementById("workType").value.trim()) {
       showToast("Tipo di spesa non salvato: aggiorna prima il database su Supabase", true);
     }
+    // Se un movimento esce da "Lavoro" perde anche lo stato di rimborso; altrimenti
+    // il campo non viene toccato (si cambia solo con i pulsanti della pagina Lavoro).
+    if (hasReimbColumn && !isWork) payload.lavoro_rimborsato = null;
 
     // Se è un'uscita con una categoria mai vista prima, la aggiunge automaticamente
     // al budget mensile (per le entrate no: lì la "categoria" è spesso solo una fonte,
@@ -2135,7 +2289,9 @@ function sbFetch(path, opts) { return personalAccess.request(path, opts); }
             id: editId, data: date, descrizione: payload.descrizione, categoria: categoria,
             importo: payload.importo, tipo: currentTxType, metodo: metodo,
             regalo_a: payload.regalo_a, regalo_cosa: payload.regalo_cosa, regalo_occasione: payload.regalo_occasione,
-            lavoro_tipo: payload.lavoro_tipo
+            lavoro_tipo: payload.lavoro_tipo,
+            lavoro_rimborsato: "lavoro_rimborsato" in payload ? payload.lavoro_rimborsato
+              : (state.transactions.filter(function (t) { return String(t.id) === String(editId); })[0] || {}).reimbursedOn
           });
           updated.id = editId;
           state.transactions = state.transactions.map(function (t) {
