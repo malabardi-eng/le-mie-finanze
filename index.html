@@ -557,9 +557,21 @@
   }
 </style>
 </head>
-<body><style>[hidden]{display:none!important}#accesso-personale{max-width:440px;margin:12vh auto;padding:28px;background:#fff;color:#17202a;border-radius:18px;font:17px system-ui}#accesso-personale input,#accesso-personale button{box-sizing:border-box;width:100%;padding:12px;margin:10px 0}#accesso-barra{padding:12px;background:#fff2cf;color:#312916;font:15px system-ui}#accesso-barra button{margin-left:16px}</style>
+<body><style>[hidden]{display:none!important}#accesso-personale{max-width:440px;margin:12vh auto;padding:28px;background:#fff;color:#17202a;border-radius:18px;font:17px system-ui}#accesso-personale input,#accesso-personale button{box-sizing:border-box;width:100%;padding:12px;margin:10px 0}#accesso-barra{padding:12px;background:#fff2cf;color:#312916;font:15px system-ui}#accesso-barra button{margin-left:16px}
+#lucchetto-finanze{max-width:420px;margin:12vh auto;padding:28px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:18px;font:16px var(--font-body);text-align:center;box-sizing:border-box}
+@media (max-width:480px){#lucchetto-finanze{margin:8vh 16px}}
+#lucchetto-finanze .lf-icon{font-size:2.2rem;line-height:1}
+#lucchetto-finanze h1{font-size:1.3rem;margin:.6rem 0 .3rem}
+#lucchetto-finanze p{color:var(--text-muted);margin:.4rem 0}
+#lucchetto-finanze input{box-sizing:border-box;width:100%;padding:12px;margin:6px 0;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:16px var(--font-body)}
+#lucchetto-finanze button{box-sizing:border-box;width:100%;padding:12px;margin:8px 0 0;border:0;border-radius:10px;background:var(--accent);color:#fff;font:600 16px var(--font-body);cursor:pointer}
+#lucchetto-finanze button.lf-secondary{background:transparent;color:var(--text-muted);border:1px solid var(--border)}
+#lucchetto-finanze button:disabled{opacity:.6;cursor:default}
+#lucchetto-finanze .lf-msg{color:var(--text);font-weight:600;min-height:1.2em}
+#lucchetto-finanze .lf-hint{font-size:.82rem}</style>
 <section id="accesso-personale"><h1>Il tuo accesso personale</h1><p>Accedi con il tuo account personale. La sessione resta attiva su questo browser.</p><form id="accesso-form"><label>Email<input type="email" autocomplete="username" id="accesso-email" required></label><label>Password<input id="accesso-password" type="password" autocomplete="current-password" required></label><button>Accedi</button></form><p id="accesso-messaggio" role="status">La sessione rimane attiva su questo browser. Non inviare la password nella chat.</p></section>
-<main id="app-protetta" hidden inert><div id="accesso-barra"><span id="accesso-stato"></span><button id="accesso-esci">Esci</button></div>
+<section id="lucchetto-finanze" hidden aria-live="polite"></section>
+<main id="app-protetta" hidden inert><div id="accesso-barra"><span id="accesso-stato"></span><button id="lucchetto-chiudi">🔒 Chiudi</button><button id="lucchetto-cambia">Cambia password</button><button id="accesso-esci">Esci</button></div>
 
 <div class="loading-screen" id="loadingScreen">
   <div>Caricamento dati…</div>
@@ -929,7 +941,7 @@
     return {
       token,
       async request(path, opts = {}) {
-        if (!/^\/(finanze_(categorie|impostazioni|metodi|movimenti)|habit_(activities|entries|office_days|diario_days|diario_photos))(\?|$)/.test(path)) throw new Error('Percorso non valido.');
+        if (!/^\/(finanze_(categorie|impostazioni|metodi|movimenti)|habit_(activities|entries|office_days|diario_days|diario_photos|impostazioni))(\?|$)/.test(path)) throw new Error('Percorso non valido.');
         const method=(opts.method || 'GET').toUpperCase();
         if (!['GET','POST','PATCH','DELETE'].includes(method)) throw new Error('Metodo non consentito.');
         if (method !== 'GET' && !config.allowMutations) {
@@ -955,6 +967,132 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = { createAccess };
   root.createPersonalAccess = createAccess;
 })(typeof window === 'undefined' ? globalThis : window);
+</script><script>(function () {
+  'use strict';
+  /* ---- Lucchetto delle finanze (come quello del Diario in Habit Tracker) ----
+     La password non viene mai salvata: nel database c'è solo la sua impronta (PBKDF2),
+     in habit_impostazioni con chiave finanze_lucchetto, valida su iPhone e Mac.
+     È un lucchetto, non una cifratura: i dati restano leggibili a chi entra nel database con l'account personale. */
+  const KEY = 'finanze_lucchetto';
+  const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+  const unb64 = text => Uint8Array.from(atob(text), c => c.charCodeAt(0));
+  async function digest(password, salt, iter) {
+    const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+    return b64(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: iter }, key, 256));
+  }
+  const valid = c => !!(c && typeof c.hash === 'string' && typeof c.salt === 'string' && Number.isInteger(c.iter) && c.iter > 0);
+
+  window.startFinanceLock = function (access, app) {
+    const box = document.getElementById('lucchetto-finanze');
+    let config = null, open = false, busy = false, msg = '', mode = 'carica', loadId = 0, firstUnlock;
+    const firstOpen = new Promise(resolve => { firstUnlock = resolve; });
+
+    // Tema scelto nell'app (o del dispositivo) già sul lucchetto, prima che l'app parta.
+    try {
+      const saved = localStorage.getItem('finanze-theme');
+      const dark = saved ? saved === 'dark' : !!(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    } catch (_) {}
+
+    const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const pw = (id, label, auto) => `<input type="password" id="${id}" aria-label="${label}" placeholder="${label}" autocomplete="${auto}" required>`;
+    function render() {
+      const dis = busy ? 'disabled' : '';
+      const m = `<p class="lf-msg" role="status">${esc(msg)}</p>`;
+      let body;
+      if (mode === 'carica') body = `<h1>Le mie finanze</h1><p>Controllo il lucchetto…</p>`;
+      else if (mode === 'errore') body = `<h1>Finanze chiuse</h1><p>Non riesco a controllare la password: verifica la connessione.</p>
+        <button type="button" id="lf-riprova">Riprova</button>`;
+      else if (mode === 'chiuso') body = `<h1>Le mie finanze</h1><p>Scrivi la password delle finanze per entrare.</p>
+        <form id="lf-apri" autocomplete="off">${pw('lf-pw', 'Password', 'current-password')}<button ${dis}>Entra</button></form>${m}
+        <p class="lf-hint">Password dimenticata? Chiedi a Claude o Codex di azzerarla: i dati restano tutti.</p>`;
+      else if (mode === 'scegli') body = `<h1>Scegli la password delle finanze</h1><p>Da ora l'app si apre solo con questa password, ogni volta che entri. Vale su iPhone e Mac. Almeno 4 caratteri.</p>
+        <form id="lf-scegli" autocomplete="off">${pw('lf-new', 'Nuova password', 'new-password')}${pw('lf-again', 'Ripeti la password', 'new-password')}<button ${dis}>Salva ed entra</button></form>${m}`;
+      else body = `<h1>Cambia password delle finanze</h1>
+        <form id="lf-cambia" autocomplete="off">${pw('lf-old', 'Password attuale', 'current-password')}${pw('lf-new', 'Nuova password', 'new-password')}${pw('lf-again', 'Ripeti la nuova password', 'new-password')}<button ${dis}>Cambia password</button></form>
+        <button type="button" class="lf-secondary" id="lf-annulla" ${dis}>Annulla</button>${m}`;
+      box.innerHTML = `<div class="lf-icon" aria-hidden="true">🔒</div>${body}`;
+      const first = box.querySelector('input');
+      if (first && !busy) first.focus();
+    }
+    function hideApp() { app.hidden = true; app.inert = true; box.hidden = false; }
+    function showApp() { box.hidden = true; box.innerHTML = ''; app.hidden = false; app.inert = false; firstUnlock(); }
+    async function load() {
+      const id = ++loadId;
+      mode = 'carica'; render();
+      try {
+        const rows = await access.request('/habit_impostazioni?select=valore&chiave=eq.' + KEY);
+        const c = rows && rows[0] ? rows[0].valore : null;
+        if (id !== loadId) return;
+        if (c && !valid(c)) throw new Error('impostazione non valida');
+        config = c; mode = c ? 'chiuso' : 'scegli';
+      } catch (_) { if (id !== loadId) return; mode = 'errore'; }
+      render();
+    }
+    async function check(password) {
+      return valid(config) && await digest(password, unb64(config.salt), config.iter) === config.hash;
+    }
+    async function setPassword(password) {
+      const salt = crypto.getRandomValues(new Uint8Array(16)), iter = 210000;
+      const valore = { v: 1, iter, salt: b64(salt), hash: await digest(password, salt, iter) };
+      await access.request('/habit_impostazioni?on_conflict=chiave', { method: 'POST',
+        body: { chiave: KEY, valore, updated_at: new Date().toISOString() }, prefer: 'resolution=merge-duplicates' });
+      config = valore;
+    }
+    function lock() {
+      open = false; msg = ''; busy = false;
+      hideApp(); load();
+    }
+    const val = id => { const el = document.getElementById(id); const v = el ? el.value : ''; if (el) el.value = ''; return v; };
+    function newPassword() {
+      const a = val('lf-new'), b = val('lf-again');
+      if (a.length < 4) { msg = 'La password deve avere almeno 4 caratteri.'; return null; }
+      if (a !== b) { msg = 'Le due password non coincidono.'; return null; }
+      return a;
+    }
+    box.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      if (busy) return;
+      const form = event.target.id, gen = loadId;
+      busy = true; msg = '';
+      try {
+        if (form === 'lf-apri') {
+          if (await check(val('lf-pw'))) open = true;
+          else { await new Promise(r => setTimeout(r, 700)); msg = 'Password non corretta.'; }
+        } else if (form === 'lf-scegli') {
+          const a = newPassword();
+          if (a) { await setPassword(a); open = true; }
+        } else if (form === 'lf-cambia') {
+          const old = val('lf-old');
+          if (!await check(old)) { val('lf-new'); val('lf-again'); await new Promise(r => setTimeout(r, 700)); msg = 'La password attuale non è corretta.'; }
+          else { const a = newPassword(); if (a) { await setPassword(a); open = true; } }
+        }
+      } catch (e) { msg = 'Non sono riuscito a salvare: ' + e.message; }
+      if (gen !== loadId) return; // richiusa nel frattempo (app lasciata): resta chiusa
+      busy = false;
+      if (open) {
+        if (form === 'lf-cambia') document.getElementById('accesso-stato').textContent = '✓ Password delle finanze cambiata';
+        showApp(); return;
+      }
+      render();
+    });
+    box.addEventListener('click', function (event) {
+      if (event.target.id === 'lf-riprova') load();
+      if (event.target.id === 'lf-annulla' && !busy) { open = true; showApp(); }
+    });
+    document.getElementById('lucchetto-chiudi').onclick = lock;
+    document.getElementById('lucchetto-cambia').onclick = function () {
+      if (!open || !valid(config)) return;
+      open = false; msg = ''; mode = 'cambia'; hideApp(); render();
+    };
+    // Si richiude uscendo dall'app: altra app, schermo spento, scheda cambiata o chiusa.
+    document.addEventListener('visibilitychange', function () { if (document.hidden) lock(); });
+    window.addEventListener('pagehide', lock);
+
+    hideApp(); load();
+    return firstOpen;
+  };
+})();
 </script><script>(function () {
   'use strict';
   window.startPersonalAccess = async function (url, key) {
@@ -1010,8 +1148,9 @@
       });
     }
     admitted = true;
-    panel.hidden = true; app.hidden = false; app.inert = false;
+    panel.hidden = true;
     document.getElementById('accesso-stato').textContent = 'Accesso personale verificato';
+    await startFinanceLock(access, app);
     return access;
   };
 })();
