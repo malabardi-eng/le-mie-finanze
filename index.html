@@ -276,7 +276,7 @@
 
   /* ---------- Transaction form ---------- */
   .tx-form {
-    display: grid; grid-template-columns: 1.2fr 1.6fr 1.1fr 1.1fr 1fr auto auto;
+    display: grid; grid-template-columns: 1.2fr 1.6fr 1.1fr 1.1fr 1fr auto auto auto;
     gap: 0.55rem; align-items: end; margin-bottom: 1.1rem;
     padding-bottom: 1.1rem; border-bottom: 1px solid var(--border);
   }
@@ -302,6 +302,25 @@
   }
   .type-toggle button.active.entrata { background: var(--good-soft); color: var(--good); }
   .type-toggle button.active.uscita { background: var(--warn-soft); color: var(--warn); }
+  .type-toggle button.active.persona { background: var(--accent-soft); color: var(--accent); }
+
+  /* ---------- Chi ha sostenuto le spese (Massimo / Lucia) ---------- */
+  #personCard[hidden], #txPersonaField[hidden], #txPersonaFilter[hidden], #txPersonaTh[hidden] { display: none; }
+  .person-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.55rem; margin-bottom: 1rem; }
+  @media (max-width: 480px) { .person-stats { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .person-stats .work-stat.total { grid-column: 1 / -1; } }
+  .person-stat-sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.2rem; }
+  .person-detail-head { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+  .person-detail-head select {
+    font-family: var(--font-body); font-size: 0.85rem;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 0.45rem 0.65rem; color: var(--text);
+  }
+  .person-detail-head .hint { font-size: 0.78rem; color: var(--text-muted); }
+  /* Sul telefono il dettaglio lascia la categoria, così l'importo resta visibile. */
+  @media (max-width: 480px) { .person-table th:nth-child(3), .person-table td:nth-child(3) { display: none; } }
+  .person-table .tx-amount { white-space: nowrap; }
+  .tx-persona-pill { display: inline-flex; font-size: 0.74rem; font-weight: 600; border-radius: 99px; padding: 0.12rem 0.5rem; background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border); white-space: nowrap; }
+  .tx-persona-pill.lucia { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
   .chart-type-toggle {
     font-family: var(--font-body); font-weight: 500;
   }
@@ -654,6 +673,29 @@
           </div>
         </section>
 
+        <div class="card" id="personCard" hidden>
+          <h2 class="card-title">
+            <span>Chi ha sostenuto le spese <span class="hint" id="personHint"></span></span>
+          </h2>
+          <div class="person-stats" id="personStats"></div>
+          <div class="person-detail-head">
+            <label for="personDetailSelect" class="hint">Dettaglio delle spese di</label>
+            <select id="personDetailSelect">
+              <option value="Massimo">Massimo</option>
+              <option value="Lucia">Lucia</option>
+            </select>
+          </div>
+          <div class="tx-table-wrap">
+            <table class="tx-table person-table">
+              <thead>
+                <tr><th>Data</th><th>Descrizione</th><th>Categoria</th><th style="text-align:right;">Importo</th><th></th></tr>
+              </thead>
+              <tbody id="personTableBody"></tbody>
+            </table>
+            <div class="tx-empty" id="personEmpty" style="display:none;"></div>
+          </div>
+        </div>
+
         <div class="grid-main">
           <div class="card">
             <h2 class="card-title">Andamento mensile <span class="hint">ultimi 6 mesi</span></h2>
@@ -732,6 +774,13 @@
                 <button type="button" class="uscita" data-type="uscita">Uscita</button>
               </div>
             </div>
+            <div class="field" id="txPersonaField" hidden>
+              <label>Chi</label>
+              <div class="type-toggle" id="txPersonaToggle">
+                <button type="button" class="active persona" data-persona="Massimo">Massimo</button>
+                <button type="button" class="persona" data-persona="Lucia">Lucia</button>
+              </div>
+            </div>
             <div class="field">
               <label>&nbsp;</label>
               <div style="display:flex; gap:0.4rem;">
@@ -774,12 +823,17 @@
             <select id="txMetodoFilter">
               <option value="">Tutti i metodi</option>
             </select>
+            <select id="txPersonaFilter" hidden>
+              <option value="">Massimo e Lucia</option>
+              <option value="Massimo">Solo Massimo</option>
+              <option value="Lucia">Solo Lucia</option>
+            </select>
             <button class="btn btn-sm" id="clearFilterBtn" style="display:none;">Cancella filtro</button>
           </div>
           <div class="tx-table-wrap">
             <table class="tx-table" id="txTable">
               <thead>
-                <tr><th>Data</th><th>Descrizione</th><th>Categoria</th><th>Metodo</th><th style="text-align:right;">Importo</th><th></th></tr>
+                <tr><th>Data</th><th>Descrizione</th><th>Categoria</th><th>Metodo</th><th id="txPersonaTh" hidden>Chi</th><th style="text-align:right;">Importo</th><th></th></tr>
               </thead>
               <tbody id="txTableBody"></tbody>
             </table>
@@ -1209,6 +1263,15 @@ function sbFetch(path, opts) { return personalAccess.request(path, opts); }
   var hasWorkColumn = false;
   // Diventa true se la colonna lavoro_rimborsato esiste su Supabase (vedi migrazione_rimborsi.sql).
   var hasReimbColumn = false;
+  // Chi ha sostenuto il movimento: diventa true se la colonna persona esiste su
+  // Supabase (vedi finanze-persona-PROPOSTA.sql). I movimenti di Lucia contano nei
+  // totali del mese ma non nel saldo né nel conto Altro, che sono i conti di Massimo.
+  var hasPersonaColumn = false;
+  var PERSONA_DEFAULT = "Massimo";
+  var currentTxPersona = PERSONA_DEFAULT;
+  var filterPersona = "";
+  var personDetail = PERSONA_DEFAULT;
+  function isMassimo(t) { return t.persona === PERSONA_DEFAULT; }
   var workYear = parseInt(currentMonth.slice(0, 4), 10);
   var workTypeFilter = "";
   var workMonthFilter = "";
@@ -1248,6 +1311,8 @@ function sbFetch(path, opts) { return personalAccess.request(path, opts); }
       const rows=await sbFetch('/finanze_movimenti?select=*&order=data.desc,id&limit=500&offset='+offset);
       // La colonna dei rimborsi c'è solo dopo migrazione_rimborsi.sql.
       if(offset===0) hasReimbColumn=rows.length>0 && Object.prototype.hasOwnProperty.call(rows[0],'lavoro_rimborsato');
+      // La colonna persona c'è solo dopo finanze-persona-PROPOSTA.sql.
+      if(offset===0) hasPersonaColumn=rows.length>0 && Object.prototype.hasOwnProperty.call(rows[0],'persona');
       result.push(...rows); if(rows.length<500)return result;
     }
   }
@@ -1283,7 +1348,8 @@ function sbFetch(path, opts) { return personalAccess.request(path, opts); }
     return {
       id: m.id, date: m.data, desc: m.descrizione, category: m.categoria, amount: Number(m.importo), type: m.tipo, metodo: m.metodo || "",
       giftTo: m.regalo_a || "", giftWhat: m.regalo_cosa || "", giftOccasion: m.regalo_occasione || "",
-      workType: m.lavoro_tipo || "", reimbursedOn: m.lavoro_rimborsato || ""
+      workType: m.lavoro_tipo || "", reimbursedOn: m.lavoro_rimborsato || "",
+      persona: m.persona || PERSONA_DEFAULT
     };
   }
 
@@ -1357,7 +1423,69 @@ function sbFetch(path, opts) { return personalAccess.request(path, opts); }
     renderGifts();
     renderWorkDashboard();
     renderWork();
+    renderPersons();
   }
+
+  // ---------- Chi ha sostenuto le spese (Massimo / Lucia) ----------
+  function renderPersons() {
+    // Prima di finanze-persona-PROPOSTA.sql la parte resta nascosta.
+    document.getElementById("personCard").hidden = !hasPersonaColumn;
+    document.getElementById("txPersonaField").hidden = !hasPersonaColumn;
+    document.getElementById("txPersonaFilter").hidden = !hasPersonaColumn;
+    document.getElementById("txPersonaTh").hidden = !hasPersonaColumn;
+    if (!hasPersonaColumn) return;
+
+    document.getElementById("personHint").textContent = monthLabel(currentMonth);
+    var monthTx = txForMonth(currentMonth);
+    function sum(list, type) {
+      return list.filter(function (t) { return t.type === type; }).reduce(function (s, t) { return s + t.amount; }, 0);
+    }
+    function tile(label, list, cls) {
+      var incomeTot = sum(list, "entrata");
+      return '<div class="work-stat' + (cls ? " " + cls : "") + '"><div class="work-stat-label">' + label + '</div>' +
+        '<div class="work-stat-value warn">' + fmtEUR.format(sum(list, "uscita")) + '</div>' +
+        '<div class="person-stat-sub">' + (incomeTot > 0 ? "entrate " + fmtEUR.format(incomeTot) : "nessuna entrata") + '</div></div>';
+    }
+    document.getElementById("personStats").innerHTML =
+      tile("Massimo", monthTx.filter(function (t) { return t.persona === "Massimo"; })) +
+      tile("Lucia", monthTx.filter(function (t) { return t.persona === "Lucia"; })) +
+      tile("Totale", monthTx, "total");
+
+    var sel = document.getElementById("personDetailSelect");
+    sel.value = personDetail;
+    var list = monthTx.filter(function (t) { return t.persona === personDetail && t.type === "uscita"; })
+      .sort(function (a, b) { return b.date.localeCompare(a.date); });
+    var empty = document.getElementById("personEmpty");
+    empty.style.display = list.length ? "none" : "block";
+    empty.textContent = "Nessuna spesa di " + personDetail + " in " + monthLabel(currentMonth) + ".";
+    var rows = list.map(function (t) {
+      return '<tr>' +
+        '<td class="tx-date">' + fmtDate(t.date) + '</td>' +
+        '<td>' + escapeHtml(t.desc || "—") + '</td>' +
+        '<td><span class="tx-cat-pill"><span class="cat-dot" style="background:' + catColor(t.category) + '"></span>' + escapeHtml(t.category) + '</span></td>' +
+        '<td class="tx-amount uscita">−' + fmtEUR.format(t.amount).replace("€", "").trim() + ' €</td>' +
+        '<td class="tx-actions-cell"><button class="tx-edit" data-id="' + t.id + '" title="Modifica movimento">✎</button></td>' +
+      '</tr>';
+    }).join("");
+    if (list.length) {
+      rows += '<tr><td></td><td><strong>Totale ' + escapeHtml(personDetail) + '</strong></td><td></td>' +
+        '<td class="tx-amount uscita">−' + fmtEUR.format(sum(list, "uscita")).replace("€", "").trim() + ' €</td><td></td></tr>';
+    }
+    document.getElementById("personTableBody").innerHTML = rows;
+  }
+  document.getElementById("personDetailSelect").addEventListener("change", function () {
+    personDetail = this.value;
+    renderPersons();
+  });
+  document.getElementById("personTableBody").addEventListener("click", function (e) {
+    var btn = e.target.closest(".tx-edit");
+    if (!btn) return;
+    var id = btn.getAttribute("data-id");
+    var tx = state.transactions.filter(function (t) { return String(t.id) === id; })[0];
+    if (!tx) return;
+    goToPage("movimenti");
+    enterEditMode(tx);
+  });
 
   // ---------- Regali ----------
   function giftTransactions() {
@@ -1814,7 +1942,8 @@ document.getElementById("workMonthFilter").addEventListener("change", function (
   }
 
   function renderStats() {
-    var allTotal = state.transactions.reduce(function (sum, t) {
+    // Il saldo è il conto di Massimo: i movimenti di Lucia non lo toccano.
+    var allTotal = state.transactions.filter(isMassimo).reduce(function (sum, t) {
       return sum + (t.type === "entrata" ? t.amount : -t.amount);
     }, state.initialBalance);
 
@@ -1843,7 +1972,7 @@ document.getElementById("workMonthFilter").addEventListener("change", function (
     // storico dei Movimenti ma non vengono più sottratte al saldo mostrato qui.
     var ALTRO_START_DATE = "2026-08-27";
     var altroTx = state.transactions.filter(function (t) {
-      return (t.metodo || "").trim().toLowerCase() === "altro" && t.date >= ALTRO_START_DATE;
+      return isMassimo(t) && (t.metodo || "").trim().toLowerCase() === "altro" && t.date >= ALTRO_START_DATE;
     });
     var altroCycleStart = altroTx
       .filter(function (t) { return t.type === "entrata"; })
@@ -2072,7 +2201,7 @@ document.getElementById("workMonthFilter").addEventListener("change", function (
     return '<span class="tx-gift-sub">💼 ' + escapeHtml(t.workType) + '</span>';
   }
 
-  function isFilterActive() { return filterText.trim() !== "" || filterCategory !== "" || filterMetodo !== ""; }
+  function isFilterActive() { return filterText.trim() !== "" || filterCategory !== "" || filterMetodo !== "" || (hasPersonaColumn && filterPersona !== ""); }
 
   function renderTransactions() {
     var tbody = document.getElementById("txTableBody");
@@ -2093,7 +2222,8 @@ document.getElementById("workMonthFilter").addEventListener("change", function (
         var matchesText = !needle || haystack.indexOf(needle) >= 0;
         var matchesCat = !filterCategory || t.category === filterCategory;
         var matchesMetodo = !filterMetodo || t.metodo === filterMetodo;
-        return matchesText && matchesCat && matchesMetodo;
+        var matchesPersona = !hasPersonaColumn || !filterPersona || t.persona === filterPersona;
+        return matchesText && matchesCat && matchesMetodo && matchesPersona;
       });
     } else {
       list = monthTx;
@@ -2134,6 +2264,7 @@ document.getElementById("workMonthFilter").addEventListener("change", function (
         '<td>' + escapeHtml(t.desc || "—") + giftSubline(t) + workSubline(t) + '</td>' +
         '<td><span class="tx-cat-pill"><span class="cat-dot" style="background:' + catColor(t.category) + '"></span>' + escapeHtml(t.category) + '</span></td>' +
         '<td>' + (t.metodo ? '<span class="tx-metodo-pill">' + escapeHtml(t.metodo) + '</span>' : '<span class="tx-metodo-empty">—</span>') + '</td>' +
+        (hasPersonaColumn ? '<td><span class="tx-persona-pill' + (t.persona === "Lucia" ? " lucia" : "") + '">' + escapeHtml(t.persona) + '</span></td>' : "") +
         '<td class="tx-amount ' + t.type + '">' + (t.type === "entrata" ? "+" : "−") + fmtEUR.format(t.amount).replace("€", "").trim() + " €</td>" +
         '<td class="tx-actions-cell"><button class="tx-edit" data-id="' + t.id + '" title="Modifica movimento">✎</button><button class="tx-del" data-id="' + t.id + '" title="Elimina movimento">✕</button></td>' +
       '</tr>';
@@ -2257,8 +2388,20 @@ document.getElementById("workMonthFilter").addEventListener("change", function (
     });
   }
 
+  function setTxPersona(persona) {
+    currentTxPersona = persona;
+    document.getElementById("txPersonaToggle").querySelectorAll("button").forEach(function (b) {
+      b.classList.toggle("active", b.getAttribute("data-persona") === persona);
+    });
+  }
+  document.getElementById("txPersonaToggle").addEventListener("click", function (e) {
+    var btn = e.target.closest("button[data-persona]");
+    if (btn) setTxPersona(btn.getAttribute("data-persona"));
+  });
+
   function enterEditMode(tx) {
     editingTxId = tx.id;
+    setTxPersona(tx.persona || PERSONA_DEFAULT);
     document.getElementById("txDate").value = tx.date;
     document.getElementById("txDesc").value = tx.desc || "";
     document.getElementById("txCategory").value = tx.category || "";
@@ -2286,6 +2429,7 @@ document.getElementById("workMonthFilter").addEventListener("change", function (
     document.getElementById("txMetodo").value = "";
     document.getElementById("txAmount").value = "";
     clearGiftFields();
+    setTxPersona(PERSONA_DEFAULT);
     currentTxType = "entrata";
     setTxTypeToggle(currentTxType);
     updateCategoryHint();
@@ -2375,6 +2519,9 @@ document.getElementById("workMonthFilter").addEventListener("change", function (
       tipo: currentTxType
     };
     if (metodo) payload.metodo = metodo;
+    // Chi l'ha sostenuto: non è tra le colonne facoltative, così un errore non lo
+    // fa mai cadere in silenzio (il movimento finirebbe alla persona sbagliata).
+    if (hasPersonaColumn) payload.persona = currentTxPersona;
     // Campi regalo: valorizzati solo per le uscite "Regali"; per gli altri movimenti
     // vengono azzerati (utile se un movimento viene spostato fuori da "Regali").
     if (hasGiftColumns) {
@@ -2428,7 +2575,7 @@ document.getElementById("workMonthFilter").addEventListener("change", function (
             id: editId, data: date, descrizione: payload.descrizione, categoria: categoria,
             importo: payload.importo, tipo: currentTxType, metodo: metodo,
             regalo_a: payload.regalo_a, regalo_cosa: payload.regalo_cosa, regalo_occasione: payload.regalo_occasione,
-            lavoro_tipo: payload.lavoro_tipo,
+            lavoro_tipo: payload.lavoro_tipo, persona: payload.persona,
             lavoro_rimborsato: "lavoro_rimborsato" in payload ? payload.lavoro_rimborsato
               : (state.transactions.filter(function (t) { return String(t.id) === String(editId); })[0] || {}).reimbursedOn
           });
@@ -2485,11 +2632,13 @@ document.getElementById("workMonthFilter").addEventListener("change", function (
   document.getElementById("txSearch").addEventListener("input", function () { filterText = this.value; renderTransactions(); });
   document.getElementById("txCategoryFilter").addEventListener("change", function () { filterCategory = this.value; renderTransactions(); });
   document.getElementById("txMetodoFilter").addEventListener("change", function () { filterMetodo = this.value; renderTransactions(); });
+  document.getElementById("txPersonaFilter").addEventListener("change", function () { filterPersona = this.value; renderTransactions(); });
   document.getElementById("clearFilterBtn").addEventListener("click", function () {
-    filterText = ""; filterCategory = ""; filterMetodo = "";
+    filterText = ""; filterCategory = ""; filterMetodo = ""; filterPersona = "";
     document.getElementById("txSearch").value = "";
     document.getElementById("txCategoryFilter").value = "";
     document.getElementById("txMetodoFilter").value = "";
+    document.getElementById("txPersonaFilter").value = "";
     renderTransactions();
   });
 
